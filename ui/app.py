@@ -11,7 +11,7 @@ from core.storage import StorageClient
 from core.cortex_gateway import CortexGateway
 
 # Page config
-st.set_page_config(page_title="StructZero Enterprise", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="StructZero - Enterprise Engineering Intelligence Platform", layout="wide", initial_sidebar_state="expanded")
 
 # Custom CSS for enterprise aesthetic
 st.markdown("""
@@ -67,7 +67,7 @@ with st.sidebar:
             st.button(f"{item['id'][:8]}... ({model_used})", key=item['id'])
 
 # --- MAIN DASHBOARD ---
-st.title("StructZero Enterprise")
+st.title("StructZero - Enterprise Engineering Intelligence Platform")
 st.markdown("### Advanced AI Software Architecture Copilot")
 
 prompt = st.text_area("Planning Request", placeholder="e.g., Design a scalable payment microservice...", height=150)

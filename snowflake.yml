@@ -4,5 +4,5 @@ streamlit:
   stage: structzero_stage
   query_warehouse: compute_wh
   main_file: "ui/app.py"
-  title: "StructZero Enterprise"
+  title: "StructZero - Enterprise Engineering Intelligence Platform"
   env_file: environment.yml

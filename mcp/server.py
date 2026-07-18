@@ -12,7 +12,7 @@ from core.pipeline import PlanningPipeline
 from core.models import PlanningRequest
 
 # Initialize Server
-mcp = FastMCP("StructZero Enterprise")
+mcp = FastMCP("StructZero - Enterprise Engineering Intelligence Platform")
 
 # Global dependencies
 gateway = None
