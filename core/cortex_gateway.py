@@ -1,5 +1,5 @@
 import os
-from dotenv import load_dotenv
+
 from snowflake.snowpark import Session
 from snowflake.snowpark.context import get_active_session
 
@@ -10,6 +10,7 @@ class CortexGateway:
             self.session = get_active_session()
         except Exception:
             # Local development fallback (MCP, Local Streamlit)
+            from dotenv import load_dotenv
             load_dotenv()
             connection_parameters = {
                 "account": os.getenv("SNOWFLAKE_ACCOUNT"),
