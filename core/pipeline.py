@@ -62,14 +62,11 @@ class PlanningPipeline:
         yield {"step": 4, "agent": "Performance Reviewer", "model": MODEL_ROUTER["performance"], "status": "running"}
         
         reviewer_start = time.time()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            fut_crit = executor.submit(self.critical_reviewer.review, draft_markdown, request.enterprise_context)
-            fut_sec = executor.submit(self.security_reviewer.review, draft_markdown, request.enterprise_context)
-            fut_perf = executor.submit(self.performance_reviewer.review, draft_markdown, request.enterprise_context)
-            
-            critical_report = fut_crit.result()
-            security_report = fut_sec.result()
-            performance_report = fut_perf.result()
+        
+        # Snowflake Native (SiS) does not support concurrent threading on the same Snowpark Session
+        critical_report = self.critical_reviewer.review(draft_markdown, request.enterprise_context)
+        security_report = self.security_reviewer.review(draft_markdown, request.enterprise_context)
+        performance_report = self.performance_reviewer.review(draft_markdown, request.enterprise_context)
             
         reviewer_time = time.time() - reviewer_start
         
@@ -95,14 +92,10 @@ class PlanningPipeline:
         yield {"step": 52, "agent": "Security Voter", "model": MODEL_ROUTER["security"], "status": "running"}
         yield {"step": 53, "agent": "Performance Voter", "model": MODEL_ROUTER["performance"], "status": "running"}
         
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            fut_crit_vote = executor.submit(self.critical_reviewer.vote, final_markdown)
-            fut_sec_vote = executor.submit(self.security_reviewer.vote, final_markdown)
-            fut_perf_vote = executor.submit(self.performance_reviewer.vote, final_markdown)
-            
-            crit_vote = fut_crit_vote.result()
-            sec_vote = fut_sec_vote.result()
-            perf_vote = fut_perf_vote.result()
+        # Snowflake Native (SiS) does not support concurrent threading on the same Snowpark Session
+        crit_vote = self.critical_reviewer.vote(final_markdown)
+        sec_vote = self.security_reviewer.vote(final_markdown)
+        perf_vote = self.performance_reviewer.vote(final_markdown)
             
         yield {"step": 51, "agent": "Critical Voter", "model": MODEL_ROUTER["critical"], "status": "complete", "output": crit_vote}
         yield {"step": 52, "agent": "Security Voter", "model": MODEL_ROUTER["security"], "status": "complete", "output": sec_vote}
