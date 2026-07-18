@@ -6,7 +6,3 @@ streamlit:
   main_file: "ui/app.py"
   title: "StructZero - Enterprise Engineering Intelligence Platform"
   env_file: environment.yml
-  artifacts:
-    - ui/
-    - core/
-    - knowledge/
