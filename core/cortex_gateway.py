@@ -1,17 +1,23 @@
 import os
 from dotenv import load_dotenv
 from snowflake.snowpark import Session
+from snowflake.snowpark.context import get_active_session
 
 class CortexGateway:
     def __init__(self):
-        load_dotenv()
-        connection_parameters = {
-            "account": os.getenv("SNOWFLAKE_ACCOUNT"),
-            "user": os.getenv("SNOWFLAKE_USER"),
-            "password": os.getenv("SNOWFLAKE_PASSWORD"),
-            "role": os.getenv("SNOWFLAKE_ROLE"),
-        }
-        self.session = Session.builder.configs(connection_parameters).create()
+        try:
+            # Native Streamlit in Snowflake (SiS) uses the active session automatically
+            self.session = get_active_session()
+        except Exception:
+            # Local development fallback (MCP, Local Streamlit)
+            load_dotenv()
+            connection_parameters = {
+                "account": os.getenv("SNOWFLAKE_ACCOUNT"),
+                "user": os.getenv("SNOWFLAKE_USER"),
+                "password": os.getenv("SNOWFLAKE_PASSWORD"),
+                "role": os.getenv("SNOWFLAKE_ROLE"),
+            }
+            self.session = Session.builder.configs(connection_parameters).create()
         self.reset_metrics()
 
     def reset_metrics(self):
