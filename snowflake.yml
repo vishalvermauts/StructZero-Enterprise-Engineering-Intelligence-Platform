@@ -1,0 +1,8 @@
+definition_version: 1
+streamlit:
+  name: structzero_enterprise_dashboard
+  stage: structzero_stage
+  query_warehouse: compute_wh
+  main_file: "ui/app.py"
+  title: "StructZero Enterprise"
+  env_file: environment.yml
