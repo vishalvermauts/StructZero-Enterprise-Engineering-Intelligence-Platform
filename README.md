@@ -71,11 +71,17 @@ uv run python -m core.setup_schema
 
 ### 5. Run the Platform
 
-**To run the UI Dashboard (Streamlit):**
+**To run the UI Dashboard locally (Streamlit):**
 ```bash
-uv run streamlit run ui/app.py
+uv run streamlit run streamlit_app.py
 ```
-This will launch the interactive Enterprise Dashboard where you can query the system, watch the agents debate in real-time, and view the observability telemetry.
+This will launch the interactive Enterprise Dashboard locally.
+
+**To deploy directly into Snowflake Native Streamlit (SiS):**
+```bash
+snow streamlit deploy structzero_dashboard --replace --prune --database STRUCTZERO_DB --schema ENTERPRISE
+```
+This deploys the dashboard natively inside your Snowflake account securely.
 
 **To run the end-to-end backend test pipeline:**
 ```bash
@@ -101,8 +107,8 @@ The repository is modularly designed into distinct enterprise components:
 - **`knowledge_loader.py` & `loaders/`**: The plugin-based knowledge orchestrator. Scans the `/knowledge` directory, parses Markdown frontmatter, calculates MD5 checksums, and chunks data for the Enterprise Brain.
 - **`validators.py`**: A deterministic Python rules engine that scores the final AI blueprints out of 100 based on security and performance rules.
 
-### `ui/` (The Interface)
-- **`app.py`**: A rich Streamlit dashboard. It renders real-time Mermaid.js diagrams, displays the AI's "Evidence Summary", and provides a granular telemetry sidebar (tracking latency, Cortex API calls, and estimated costs).
+### The Interface
+- **`streamlit_app.py`**: A rich Streamlit dashboard. It renders real-time Mermaid.js diagrams, displays the AI's "Evidence Summary", and provides a granular telemetry sidebar (tracking latency, Cortex API calls, and estimated costs).
 
 ### `knowledge/` (The Enterprise Brain)
 - A mock directory structure (`aws/`, `security/`, `incidents/`, `patterns/`) containing Markdown files. The system ingests these at runtime, allowing the Architect to explicitly cite internal company policies (e.g., PCI-DSS constraints) in its blueprints.
