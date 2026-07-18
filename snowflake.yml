@@ -5,10 +5,10 @@ entities:
     identifier: structzero_enterprise_dashboard
     stage: structzero_stage
     query_warehouse: compute_wh
-    main_file: "ui/app.py"
+    main_file: "streamlit_app.py"
     title: "StructZero - Enterprise Engineering Intelligence Platform"
     artifacts:
-      - ui/
+      - streamlit_app.py
       - core/
       - knowledge/
       - environment.yml

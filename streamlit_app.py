@@ -2,8 +2,7 @@ import streamlit as st
 import sys
 import os
 
-# Add root directory to python path so we can import 'core'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 
 from core.models import PlanningRequest
 from core.pipeline import PlanningPipeline
