@@ -1,6 +1,6 @@
-# StructZero Enterprise CoCo
+# StructZero - Enterprise Engineering Intelligence Platform
 
-**StructZero Enterprise CoCo** is an **Enterprise Engineering Intelligence Platform** built natively on Snowflake Cortex. It goes far beyond a simple LLM wrapper—it acts as an autonomous AI architecture review board. By combining a Progressive Knowledge Platform, Multi-Agent Debate Engine, comprehensive Telemetry, and an MCP Server, it helps engineering teams design, review, validate, and evolve production software systems securely using their own internal enterprise wisdom.
+**StructZero - Enterprise Engineering Intelligence Platform** is built natively on Snowflake Cortex. It goes far beyond a simple LLM wrapper—it acts as an autonomous AI architecture review board. By combining a Progressive Knowledge Platform, Multi-Agent Debate Engine, comprehensive Telemetry, and an MCP Server, it helps engineering teams design, review, validate, and evolve production software systems securely using their own internal enterprise wisdom.
 
 ---
 
