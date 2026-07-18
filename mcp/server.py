@@ -8,6 +8,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from mcp.server.fastmcp import FastMCP, Context
 from core.cortex_gateway import CortexGateway
 from core.storage import StorageClient
+from core.pipeline import PlanningPipeline
+from core.models import PlanningRequest
 
 # Initialize Server
 mcp = FastMCP("StructZero Enterprise")
@@ -92,6 +94,32 @@ def search_blueprints(query: str) -> str:
     if not results:
         return f"No blueprints matched query: {query}"
     return json.dumps([{"id": b.get("id"), "project_id": b.get("project_id"), "version": b.get("version")} for b in results], indent=2)
+
+@mcp.tool()
+def generate_architecture(project_name: str, requirements: str, cloud_target: str = "AWS", compliance: str = "") -> str:
+    """
+    Trigger the full StructZero Multi-Agent Debate Engine to generate a new architecture blueprint.
+    This runs the Architect, Reviewers, and Synthesizer against Snowflake Cortex.
+    WARNING: This can take 60-90 seconds to run.
+    """
+    pipeline = PlanningPipeline()
+    req = PlanningRequest(
+        project_name=project_name,
+        prompt=requirements,
+        cloud_target=cloud_target,
+        compliance=compliance
+    )
+    
+    final_blueprint_markdown = ""
+    for state in pipeline.run(req):
+        if state.get("status") == "finished":
+            blueprint = state.get("blueprint")
+            final_blueprint_markdown = blueprint.raw_markdown if blueprint else "Failed to generate."
+            break
+        elif state.get("status") == "error":
+            return f"Error during generation: {state.get('error')}"
+            
+    return f"## Generation Complete\n\n{final_blueprint_markdown}"
 
 # --- Resources ---
 # FastMCP natively supports exposing endpoints as resources
