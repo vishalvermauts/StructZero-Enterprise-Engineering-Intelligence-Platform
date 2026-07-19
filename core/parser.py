@@ -1,7 +1,8 @@
 import re
-from pydantic import BaseModel, Field
+from dataclasses import dataclass
 
-class BlueprintPresentation(BaseModel):
+@dataclass
+class BlueprintPresentation:
     executive_summary: str = ""
     graphviz: str = ""
     components: str = ""
