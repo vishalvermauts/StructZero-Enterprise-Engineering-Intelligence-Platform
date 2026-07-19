@@ -23,22 +23,21 @@ class ProductionValidator:
                 
         # 1. Check for required sections (Completeness)
         required_sections = [
-            "Decision Log", "Executive Summary", "Requirements", "Architecture", 
-            "Components", "Folder Structure", "API Design", 
-            "Security", "Trade-offs & Alternatives", "Risks", 
-            "Assumptions", "Implementation Plan"
+            "Executive Summary", "Architecture", 
+            "Components", "Security", "Performance", "Risks", 
+            "Decision Log", "Roadmap", "Recommended Actions"
         ]
         
         for section in required_sections:
-            if not re.search(rf"#+\s*{section}", raw_markdown, re.IGNORECASE):
+            if not re.search(rf"#+.*{section}", raw_markdown, re.IGNORECASE):
                 deduct("Completeness", 5, f"Missing required section: {section}", is_error=True)
                 
-        # 2. Mermaid Diagram
-        mermaid_matches = re.findall(r"```mermaid(.*?)```", raw_markdown, re.DOTALL)
-        if not mermaid_matches:
-            deduct("Completeness", 10, "Missing Mermaid Diagram block.", is_error=True)
-        elif len(mermaid_matches) > 1:
-            deduct("Consistency", 5, "Multiple Mermaid Diagram blocks found. Only the first will be rendered.")
+        # 2. Graphviz Diagram
+        graphviz_matches = re.findall(r"```graphviz(.*?)```", raw_markdown, re.DOTALL)
+        if not graphviz_matches:
+            deduct("Completeness", 10, "Missing Graphviz Diagram block.", is_error=True)
+        elif len(graphviz_matches) > 1:
+            deduct("Consistency", 5, "Multiple Graphviz Diagram blocks found. Only the first will be rendered.")
             
         # 3. Cross-reference checks (Consistency)
         lower_md = raw_markdown.lower()

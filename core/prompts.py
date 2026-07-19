@@ -120,18 +120,18 @@ Reason:
 [Explanation]
 
 # Executive Summary
-# Requirements
-# Architecture
+# Architecture Diagram
+(You must include exactly ONE graphviz block ` ```graphviz ... ``` ` representing the architecture visually)
 # Components
-# Folder Structure
-# API Design
 # Security
-# Trade-offs & Alternatives
+# Performance
 # Risks
-# Assumptions
-# Implementation Plan
-# Mermaid Diagram
-(You must include exactly ONE markdown mermaid block ```mermaid ... ``` representing V2)
+# Decision Log
+(List decisions under Accepted, Rejected, or Modified)
+# Implementation Roadmap
+# Recommended Actions
+
+Do NOT include conversational filler.
 
 Do NOT include conversational filler.
 """
