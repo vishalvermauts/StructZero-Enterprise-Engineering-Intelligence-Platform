@@ -115,3 +115,35 @@ The repository is modularly designed into distinct enterprise components:
 
 ### `mcp/` (The IDE Server)
 - **`server.py` & `run.py`**: Exposes the Snowflake intelligence directly to local developer tools using the Model Context Protocol (`mcp.server.fastmcp`). This allows developers to query architecture blueprints directly from Cursor or Claude Desktop.
+
+---
+
+## 🗺️ Future Enterprise Roadmap
+
+While StructZero is fully functional today, its native Snowflake architecture unlocks massive future potential:
+
+| Priority | Feature                     | Judge Impact                              |
+| -------- | --------------------------- | ----------------------------------------- |
+| ⭐⭐⭐⭐⭐    | **Cortex Search**               | Native Enterprise RAG                     |
+| ⭐⭐⭐⭐⭐    | **Cortex Analyst**              | AI-powered engineering analytics          |
+| ⭐⭐⭐⭐⭐    | **Snowpark Container Services** | Native parallel multi-agent orchestration |
+| ⭐⭐⭐⭐     | **Native App Marketplace**      | Enterprise deployment story               |
+| ⭐⭐⭐⭐     | **Engineering Memory Graph**    | Self-improving AI platform                |
+| ⭐⭐⭐      | **Tasks & Streams**             | Asynchronous background execution         |
+| ⭐⭐       | **Hybrid Tables**               | Future multi-user SaaS scalability        |
+| ⭐        | **Fine-Tuning**                 | Long-term research item                   |
+
+### Phase 1: Native Enterprise Knowledge (Cortex Search)
+Replacing custom chunking/retrieval with fully managed **Cortex Search**. This provides out-of-the-box hybrid search (vector + keyword) over enterprise knowledge bases, enabling semantic search with zero custom retrieval code.
+
+### Phase 2: AI-Powered Analytics (Cortex Analyst)
+Since StructZero stores all engineering telemetry in native Snowflake tables, **Cortex Analyst** can be plugged directly into the platform. Executives can ask natural language questions like *"Which cloud provider produced the highest architecture quality score this quarter?"* and instantly receive SQL-driven analytical answers.
+
+### Phase 3: Parallel AI Orchestration (Snowpark Container Services)
+Moving the multi-agent orchestration engine into **Snowpark Container Services (SPCS)**. This will allow the Architect, Security, and Performance agents to debate concurrently in parallel across distributed compute nodes natively inside Snowflake.
+
+### Phase 4: Enterprise Deployment (Snowflake Native App Marketplace)
+Packaging StructZero as an installable **Snowflake Native App**. Enterprises can install the entire Intelligence Platform directly into their own Snowflake accounts with one click, securely maintaining 100% of their proprietary architecture data and policies inside their own perimeter.
+
+### Phase 5: Self-Improving Platform (Engineering Memory Graph)
+Transforming past blueprints into an **Enterprise Memory Graph**. Every architecture generated becomes a node in the knowledge graph. When future architects design systems, the AI natively learns from the successes and failures of previous architectures.
