@@ -1,9 +1,3 @@
-"""
-Streamlit UI Dashboard Module
-=============================
-The primary user interface for StructZero, built on Streamlit.
-This dashboard can be hosted locally or natively deployed into Snowflake via Streamlit in Snowflake (SiS).
-"""
 import streamlit as st
 import sys
 import os
@@ -16,12 +10,7 @@ from core.storage import StorageClient
 from core.cortex_gateway import CortexGateway
 
 # Page config
-st.set_page_config(
-    page_title="StructZero Enterprise Engineering Intelligence Platform", 
-    page_icon="❄️", 
-    layout="wide", 
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="StructZero - Enterprise Engineering Intelligence Platform", layout="wide", initial_sidebar_state="expanded")
 
 # Custom CSS for enterprise aesthetic
 st.markdown("""
@@ -75,20 +64,6 @@ with st.sidebar:
             req_data = item['data'].get('request', {})
             model_used = req_data.get('model', 'Unknown')
             st.button(f"{item['id'][:8]}... ({model_used})", key=item['id'])
-            
-    st.divider()
-    st.markdown("""
-    ### About StructZero
-    **StructZero Enterprise Engineering Intelligence Platform**
-    
-    Version: 1.0.0
-    
-    Developed by **Vishal Verma**
-    
-    🌐 [https://www.vishalverma.me/](https://www.vishalverma.me/)
-    
-    © 2026 Vishal Verma. All Rights Reserved.
-    """)
 
 # --- MAIN DASHBOARD ---
 st.title("StructZero - Enterprise Engineering Intelligence Platform")
@@ -288,12 +263,3 @@ if st.button("Generate Blueprint", type="primary", use_container_width=True):
                 st.markdown(blueprint.raw_markdown)
                 
             st.success("Blueprint generation successful and persisted to Snowflake. Ready for MCP consumption.")
-
-# --- GLOBAL FOOTER ---
-st.divider()
-st.markdown("""
-<div style="text-align: center; padding: 20px; color: #8b949e;">
-    <p>Developed by <b>Vishal Verma</b></p>
-    <p><a href="https://www.vishalverma.me/" target="_blank" style="color: #58A6FF; text-decoration: none;">🌐 https://www.vishalverma.me/</a></p>
-</div>
-""", unsafe_allow_html=True)

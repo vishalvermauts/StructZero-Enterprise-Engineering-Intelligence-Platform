@@ -1,17 +1,7 @@
-"""
-Production Validators Module
-============================
-A deterministic Python rules engine that validates the AI-generated architecture blueprints
-against strict enterprise completeness, consistency, security, and performance criteria.
-"""
 from core.models import ValidationResult
 import re
 
 class ProductionValidator:
-    """
-    Validates raw markdown blueprints against hardcoded enterprise constraints.
-    Returns a ValidationResult containing scores and warnings/errors.
-    """
     def validate(self, raw_markdown: str) -> ValidationResult:
         warnings = []
         errors = []

@@ -118,6 +118,16 @@ The repository is modularly designed into distinct enterprise components:
 
 ---
 
+## 👨‍💻 Author
+
+**Vishal Verma**
+
+Website: [https://www.vishalverma.me/](https://www.vishalverma.me/)
+
+StructZero is an Enterprise Engineering Intelligence Platform built using Snowflake Cortex AI, Multi-Agent Architecture, and Enterprise Decision Intelligence.
+
+---
+
 ## 🗺️ Future Enterprise Roadmap
 
 While StructZero is fully functional today, its native Snowflake architecture unlocks massive future potential:

@@ -1,0 +1,6 @@
+name: structzero
+channels:
+  - snowflake
+dependencies:
+  - streamlit
+  - snowflake-snowpark-python

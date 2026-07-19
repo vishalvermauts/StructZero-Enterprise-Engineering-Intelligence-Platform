@@ -1,14 +1,9 @@
-"""
-Streamlit UI Dashboard Module
-=============================
-The primary user interface for StructZero, built on Streamlit.
-This dashboard can be hosted locally or natively deployed into Snowflake via Streamlit in Snowflake (SiS).
-"""
 import streamlit as st
 import sys
 import os
 
-
+# Add root directory to python path so we can import 'core'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from core.models import PlanningRequest
 from core.pipeline import PlanningPipeline
@@ -16,12 +11,7 @@ from core.storage import StorageClient
 from core.cortex_gateway import CortexGateway
 
 # Page config
-st.set_page_config(
-    page_title="StructZero Enterprise Engineering Intelligence Platform", 
-    page_icon="❄️", 
-    layout="wide", 
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="StructZero - Enterprise Engineering Intelligence Platform", layout="wide", initial_sidebar_state="expanded")
 
 # Custom CSS for enterprise aesthetic
 st.markdown("""
@@ -75,20 +65,6 @@ with st.sidebar:
             req_data = item['data'].get('request', {})
             model_used = req_data.get('model', 'Unknown')
             st.button(f"{item['id'][:8]}... ({model_used})", key=item['id'])
-            
-    st.divider()
-    st.markdown("""
-    ### About StructZero
-    **StructZero Enterprise Engineering Intelligence Platform**
-    
-    Version: 1.0.0
-    
-    Developed by **Vishal Verma**
-    
-    🌐 [https://www.vishalverma.me/](https://www.vishalverma.me/)
-    
-    © 2026 Vishal Verma. All Rights Reserved.
-    """)
 
 # --- MAIN DASHBOARD ---
 st.title("StructZero - Enterprise Engineering Intelligence Platform")
@@ -188,112 +164,73 @@ if st.button("Generate Blueprint", type="primary", use_container_width=True):
         st.divider()
         
         if blueprint and metrics:
-            from core.parser import parse_blueprint
-            parsed = parse_blueprint(blueprint.raw_markdown)
-            
-            # --- 1. APPROVAL BANNER ---
-            val_status = val.status if val else "UNKNOWN"
-            banner_color = "🟢" if "APPROVED" in val_status else "🔴"
-            st.markdown(f"## {banner_color} {val_status}")
-            
-            # --- 2. EXECUTIVE DASHBOARD METRICS ---
-            st.markdown("### Architecture Quality")
-            c1, c2, c3, c4, c5 = st.columns(5)
-            c1.metric("Overall Score", f"{metrics.get('blueprint_score', 0)}")
-            c2.metric("Security", f"{metrics.get('security_score', 0)}")
-            c3.metric("Performance", f"{metrics.get('performance_score', 0)}")
-            c4.metric("Est. Cost", f"${metrics.get('estimated_cost_usd', 0.0):.4f}")
-            c5.metric("Pipeline Time", f"{metrics.get('total_latency_ms', 0)/1000:.1f}s")
-            
-            st.divider()
-            
-            # --- 3. EXECUTIVE SUMMARY ---
-            st.markdown("### Executive Summary")
-            st.write(parsed.executive_summary)
-            
-            st.divider()
-            
-            # --- 4. ARCHITECTURE DIAGRAM ---
-            if parsed.graphviz:
-                st.markdown("### Architecture Diagram")
-                st.graphviz_chart(parsed.graphviz)
-                st.divider()
-                
-            # --- 5. TABS ---
-            st.markdown("### Architecture Overview")
-            t1, t2, t3, t4, t5 = st.tabs(["Components", "Security", "Performance", "Risks", "Roadmap"])
-            with t1: st.write(parsed.components)
-            with t2: st.write(parsed.security)
-            with t3: st.write(parsed.performance)
-            with t4: st.write(parsed.risks)
-            with t5: st.write(parsed.roadmap)
-            
-            st.divider()
-            
-            # --- 6. AI REVIEW BOARD ---
-            st.markdown("### AI Review Board Findings")
+            st.markdown("### Final Approval Board")
             
             votes = reviews.get("votes", {})
             v_crit = votes.get("critical", "Unknown")
             v_sec = votes.get("security", "Unknown")
             v_perf = votes.get("performance", "Unknown")
             
-            with st.expander(f"🔴 Security Review", expanded=False):
-                st.write(v_sec)
-            with st.expander(f"🟣 Performance Review", expanded=False):
-                st.write(v_perf)
-            with st.expander(f"🟠 Critical Review", expanded=False):
-                st.write(v_crit)
-                
-            st.divider()
+            # Helper to parse the vote and reason
+            def parse_vote(v_str):
+                lines = v_str.strip().split("\n")
+                vote = lines[0].strip()
+                reason = "\n".join(lines[1:]).replace("Reason:", "").strip()
+                if "APPROVE WITH WARNINGS" in vote:
+                    return "⚠ WARN", reason
+                elif "APPROVE" in vote:
+                    return "✅ APPROVE", reason
+                else:
+                    return "❌ BLOCK", reason
             
-            # --- 7. DECISION LOG & ACTIONS ---
-            c_log, c_act = st.columns(2)
-            with c_log:
-                st.markdown("### Decision Log")
-                st.write(parsed.decision_log)
-            with c_act:
-                st.markdown("### Recommended Actions")
-                st.write(parsed.recommended_actions)
-                
-            st.divider()
+            crit_vote, crit_reason = parse_vote(v_crit)
+            sec_vote, sec_reason = parse_vote(v_sec)
+            perf_vote, perf_reason = parse_vote(v_perf)
+            val_status = val.status if val else "UNKNOWN"
+            val_icon = "✅ PASS" if "APPROVED" in val_status else ("⚠ WARN" if "WARNINGS" in val_status else "❌ FAIL")
             
-            # --- 8. ENGINEERING TELEMETRY ---
-            st.markdown("### Engineering Telemetry")
+            st.markdown(f"""
+| Reviewer     | Vote      | Reason |
+| ------------ | --------- | ------ |
+| Architecture (Validator) | {val_icon} | Deterministic rules engine |
+| Critical     | {crit_vote} | {crit_reason} |
+| Security     | {sec_vote} | {sec_reason} |
+| Performance  | {perf_vote} | {perf_reason} |
+""")
+
+            st.markdown("### Engineering Telemetry (Pipeline Observability)")
             
-            col_score, col_tele = st.columns(2)
-            with col_score:
-                st.markdown("**Compliance & Quality**")
-                # Ensure values are between 0.0 and 1.0 for st.progress
-                overall_p = max(0.0, min(1.0, metrics.get("blueprint_score", 0)/100))
-                sec_p = max(0.0, min(1.0, metrics.get("security_score", 0)/100))
-                perf_p = max(0.0, min(1.0, metrics.get("performance_score", 0)/100))
-                
-                st.progress(overall_p, text=f"Overall {metrics.get('blueprint_score', 0)}")
-                st.progress(sec_p, text=f"Security {metrics.get('security_score', 0)}")
-                st.progress(perf_p, text=f"Performance {metrics.get('performance_score', 0)}")
+            # Latency Metrics
+            st.markdown("#### Agent Latency")
+            cols_l = st.columns(5)
+            cols_l[0].metric("Architect", f"{metrics.get('architect_latency_ms', 0)}ms")
+            cols_l[1].metric("Reviewers", f"{metrics.get('review_latency_ms', 0)}ms")
+            cols_l[2].metric("Synthesizer", f"{metrics.get('synthesizer_latency_ms', 0)}ms")
+            cols_l[3].metric("Validator", f"{metrics.get('validation_latency_ms', 0)}ms")
+            cols_l[4].metric("Total", f"{metrics.get('total_latency_ms', 0)}ms")
             
-            with col_tele:
-                st.markdown("**Enterprise Metrics**")
-                t_c1, t_c2 = st.columns(2)
-                t_c1.metric("Docs Searched", f"{metrics.get('knowledge_documents_searched', 0)}")
-                t_c2.metric("Chunks Extracted", f"{metrics.get('knowledge_chunks_searched', 0)}")
-                t_c1.metric("Cortex Calls", f"{metrics.get('cortex_calls', 0)}")
-                t_c2.metric("Tokens", f"{metrics.get('estimated_input_tokens', 0) + metrics.get('estimated_output_tokens', 0)}")
+            # Knowledge Metrics
+            st.markdown("#### Enterprise Knowledge Metrics")
+            cols_k = st.columns(4)
+            cols_k[0].metric("Documents Searched", f"{metrics.get('knowledge_documents_searched', 0)}")
+            cols_k[1].metric("Chunks Searched", f"{metrics.get('knowledge_chunks_searched', 0)}")
+            cols_k[2].metric("Documents Retrieved", f"{metrics.get('knowledge_documents_retrieved', 0)}")
+            cols_k[3].metric("Chunks Retrieved", f"{metrics.get('knowledge_chunks_retrieved', 0)}")
             
-            st.divider()
+            # Cortex Gateway Metrics
+            st.markdown("#### Snowflake Cortex Telemetry")
+            cols_c = st.columns(4)
+            cols_c[0].metric("Cortex Calls", f"{metrics.get('cortex_calls', 0)}")
+            cols_c[1].metric("Est. Input Tokens", f"{metrics.get('estimated_input_tokens', 0)}")
+            cols_c[2].metric("Est. Output Tokens", f"{metrics.get('estimated_output_tokens', 0)}")
+            cols_c[3].metric("Est. Cost (USD)", f"${metrics.get('estimated_cost_usd', 0.0):.4f}")
             
-            # --- 9. RAW BLUEPRINT ---
-            with st.expander("▼ Full Technical Blueprint (Raw Output)", expanded=False):
-                st.markdown(blueprint.raw_markdown)
+            # Quality Scores
+            st.markdown("#### Architecture Quality Scores")
+            cols_q = st.columns(4)
+            cols_q[0].metric("Overall Score", f"{metrics.get('blueprint_score', 0)}")
+            cols_q[1].metric("Security", f"{metrics.get('security_score', 0)}")
+            cols_q[2].metric("Performance", f"{metrics.get('performance_score', 0)}")
+            cols_q[3].metric("Validation", f"{metrics.get('validation_score', 0)}")
                 
             st.success("Blueprint generation successful and persisted to Snowflake. Ready for MCP consumption.")
-
-# --- GLOBAL FOOTER ---
-st.divider()
-st.markdown("""
-<div style="text-align: center; padding: 20px; color: #8b949e;">
-    <p>Developed by <b>Vishal Verma</b></p>
-    <p><a href="https://www.vishalverma.me/" target="_blank" style="color: #58A6FF; text-decoration: none;">🌐 https://www.vishalverma.me/</a></p>
-</div>
-""", unsafe_allow_html=True)

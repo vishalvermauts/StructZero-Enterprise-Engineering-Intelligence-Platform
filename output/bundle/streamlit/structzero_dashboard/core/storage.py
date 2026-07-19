@@ -1,16 +1,9 @@
-"""
-Storage Client Module
-=====================
-Handles all native Snowflake persistence operations using Snowpark. Manages the storage 
-and retrieval of JSON variant data for projects, blueprints, and observability telemetry.
-"""
 import json
 import dataclasses
 from snowflake.snowpark import Session
 from core.models import Blueprint, Project, DebateSession, ExecutionMetrics
 
 class StorageClient:
-    """Snowpark-based client for managing Native JSON document persistence in Snowflake."""
     def __init__(self, session: Session):
         self.session = session
         # Ensure database and schema are selected

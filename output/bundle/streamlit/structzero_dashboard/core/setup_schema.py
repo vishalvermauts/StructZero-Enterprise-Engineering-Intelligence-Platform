@@ -1,18 +1,8 @@
-"""
-Schema Setup Module
-===================
-Initializes the Snowflake database, schema, and necessary native VARIANT tables 
-to persist projects, blueprints, and engineering telemetry.
-"""
 import os
 from dotenv import load_dotenv
 from snowflake.snowpark import Session
 
 def setup_database():
-    """
-    Connects to Snowflake and idempotently creates the STRUCTZERO_DB database, 
-    ENTERPRISE schema, and core JSON variant tables.
-    """
     load_dotenv()
     connection_parameters = {
         "account": os.getenv("SNOWFLAKE_ACCOUNT"),

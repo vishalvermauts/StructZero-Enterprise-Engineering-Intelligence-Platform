@@ -1,10 +1,3 @@
-"""
-Core Models Module
-==================
-Defines the primary data structures (dataclasses) used throughout the StructZero platform.
-These models represent the architecture blueprints, planning requests, debate sessions, 
-validation results, and engineering telemetry.
-"""
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 import uuid
@@ -12,7 +5,6 @@ import datetime
 
 @dataclass
 class Project:
-    """Represents an overarching enterprise project containing multiple blueprints."""
     name: str
     description: str = ""
     owner: str = "Unknown"
@@ -21,7 +13,6 @@ class Project:
 
 @dataclass
 class PlanningRequest:
-    """Represents a user's prompt and constraints for a new architecture blueprint."""
     project_name: str
     prompt: str
     cloud_target: str
@@ -33,7 +24,6 @@ class PlanningRequest:
 
 @dataclass
 class ValidationResult:
-    """Stores the results of the determinisic validation engine."""
     status: str # APPROVED, APPROVED WITH WARNINGS, REJECTED
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
@@ -48,7 +38,6 @@ class ValidationResult:
 
 @dataclass
 class DebateSession:
-    """Records the full history and outputs of the multi-agent debate (Architect + Reviewers)."""
     blueprint_id: str
     architect_output: str = ""
     critical_review: str = ""
@@ -62,7 +51,6 @@ class DebateSession:
 
 @dataclass
 class ExecutionMetrics:
-    """Tracks engineering telemetry including latency, token usage, cost, and quality scores."""
     blueprint_id: str
     architect_model: str = ""
     reviewer_model: str = ""
@@ -97,7 +85,6 @@ class ExecutionMetrics:
 
 @dataclass
 class Blueprint:
-    """The final compiled architecture blueprint, persisting the raw LLM output and its parsed presentation."""
     project_id: str = ""
     version: int = 1
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
