@@ -7,6 +7,7 @@ requires-python = ">=3.14"
 dependencies = [
     "mcp>=1.28.1",
     "python-dotenv>=1.2.2",
+    "snowflake-core>=1.12.1",
     "snowflake-snowpark-python>=1.53.1",
     "streamlit>=1.59.2",
 ]

@@ -1,3 +1,10 @@
+"""
+AI Agents Module
+================
+Contains the logic for the specific AI Personas (Architect, Security Reviewer, 
+Performance Reviewer, Critical Reviewer, and Synthesizer). Handles prompt injection
+and delegates execution to the Cortex Gateway.
+"""
 from core.models import PlanningRequest
 from core.cortex_gateway import CortexGateway
 from core.prompts import (
@@ -11,6 +18,7 @@ from core.prompts import (
 from core.model_router import MODEL_ROUTER
 
 class ArchitectAgent:
+    """The initial generative agent that designs the first draft of the architecture."""
     def __init__(self, gateway: CortexGateway):
         self.gateway = gateway
         
@@ -27,6 +35,7 @@ class ArchitectAgent:
         return self.gateway.complete(full_prompt, MODEL_ROUTER["architect"])
 
 class CriticalReviewerAgent:
+    """Reviews blueprints for overarching architectural flaws, anti-patterns, and component failures."""
     def __init__(self, gateway: CortexGateway):
         self.gateway = gateway
     def review(self, blueprint_markdown: str, context: list[str]) -> str:
@@ -38,6 +47,7 @@ class CriticalReviewerAgent:
         return self.gateway.complete(f"{VOTER_PROMPT}\n\n=== BLUEPRINT VERSION 2 ===\n{blueprint_v2}", MODEL_ROUTER["critical"])
 
 class SecurityReviewerAgent:
+    """Reviews blueprints strictly against enterprise security standards, IAM, encryption, and compliance."""
     def __init__(self, gateway: CortexGateway):
         self.gateway = gateway
     def review(self, blueprint_markdown: str, context: list[str]) -> str:
@@ -49,6 +59,7 @@ class SecurityReviewerAgent:
         return self.gateway.complete(f"{VOTER_PROMPT}\n\n=== BLUEPRINT VERSION 2 ===\n{blueprint_v2}", MODEL_ROUTER["security"])
 
 class PerformanceReviewerAgent:
+    """Reviews blueprints for scalability bottlenecks, latency issues, and throughput constraints."""
     def __init__(self, gateway: CortexGateway):
         self.gateway = gateway
     def review(self, blueprint_markdown: str, context: list[str]) -> str:
@@ -60,6 +71,7 @@ class PerformanceReviewerAgent:
         return self.gateway.complete(f"{VOTER_PROMPT}\n\n=== BLUEPRINT VERSION 2 ===\n{blueprint_v2}", MODEL_ROUTER["performance"])
 
 class SynthesizerAgent:
+    """Takes the original draft and all reviewer critiques to produce a final, highly polished architecture."""
     def __init__(self, gateway: CortexGateway):
         self.gateway = gateway
     def synthesize(self, draft: str, critical: str, security: str, performance: str) -> str:

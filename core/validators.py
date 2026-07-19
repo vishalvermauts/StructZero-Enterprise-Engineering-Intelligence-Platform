@@ -73,9 +73,9 @@ class ProductionValidator:
         # Overall Calculation
         overall = sum(scores.values()) // len(scores)
         
-        if len(errors) > 0 or overall < 80:
-            status = "REJECTED" if overall < 60 else "APPROVED WITH WARNINGS"
-        elif len(warnings) > 0:
+        if len(errors) > 0 or overall < 60:
+            status = "REJECTED"
+        elif overall < 80 or len(warnings) > 0:
             status = "APPROVED WITH WARNINGS"
         else:
             status = "APPROVED"

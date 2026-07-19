@@ -1,3 +1,9 @@
+"""
+Knowledge Loader Module
+=======================
+The ingestion engine for the Enterprise Knowledge Base. Scans local directories for markdown
+policies and incident reports, parses them, and upserts the chunks natively into Snowflake.
+"""
 import os
 import hashlib
 from typing import Dict
@@ -7,6 +13,10 @@ from core.storage import StorageClient
 from core.models import KnowledgeRegistryEntry
 
 class KnowledgeOrchestrator:
+    """
+    Coordinates the scanning of knowledge directories, hashing to detect changes, 
+    and delegating the actual chunking to specific file loaders.
+    """
     def __init__(self, storage: StorageClient):
         self.storage = storage
         self.loaders: Dict[str, BaseLoader] = {
@@ -21,6 +31,9 @@ class KnowledgeOrchestrator:
         return hasher.hexdigest()
 
     def load_directory(self, root_dir: str):
+        """
+        Recursively walks the root directory, chunks supported files, and stores them in Snowflake.
+        """
         print(f"Starting Knowledge Ingestion from {root_dir}...")
         docs_indexed = 0
         chunks_indexed = 0

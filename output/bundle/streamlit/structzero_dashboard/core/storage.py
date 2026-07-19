@@ -1,9 +1,16 @@
+"""
+Storage Client Module
+=====================
+Handles all native Snowflake persistence operations using Snowpark. Manages the storage 
+and retrieval of JSON variant data for projects, blueprints, and observability telemetry.
+"""
 import json
 import dataclasses
 from snowflake.snowpark import Session
 from core.models import Blueprint, Project, DebateSession, ExecutionMetrics
 
 class StorageClient:
+    """Snowpark-based client for managing Native JSON document persistence in Snowflake."""
     def __init__(self, session: Session):
         self.session = session
         # Ensure database and schema are selected
@@ -66,40 +73,104 @@ class StorageClient:
         self._save_object("KNOWLEDGE_CHUNKS", chunk["id"], chunk)
 
     # --- Read Methods ---
-    def get_enterprise_context(self, request) -> list[str]:
-        # Intelligent retrieval querying JSON arrays using array_contains or basic matching
-        # For MVP, we will grab all chunks, but simulate smart retrieval based on request features
-        sql = f"SELECT DATA FROM KNOWLEDGE_CHUNKS"
-        results = self.session.sql(sql).collect()
+    def get_enterprise_context(self, prompt: str, cloud: str = None, compliance: str = None, category: str = None, technologies: list = None, limit: int = 8) -> list[dict]:
+        import time
+        import uuid
+        start_time = time.time()
+        cortex_used = False
+        returned_chunks = []
+        applied_filters = {}
         
-        relevant_chunks = []
-        for row in results:
-            chunk = json.loads(row["DATA"])
-            meta = chunk.get("metadata", {})
+        try:
+            from snowflake.core import Root
+            root = Root(self.session)
             
-            # Simple scoring mechanism based on tags/cloud/compliance
-            score = 0
-            if "General" in meta.get("category", "") or not meta:
-                score += 1
-            if request.cloud_target in meta.get("cloud", []) or request.cloud_target in meta.get("tags", []):
-                score += 5
-            if request.compliance in meta.get("compliance", []) or request.compliance in meta.get("tags", []):
-                score += 5
+            # Prepare metadata filters
+            filter_conditions = []
+            
+            if cloud and cloud != "None":
+                filter_conditions.append({"@contains": {"cloud": cloud}})
+                applied_filters["cloud"] = cloud
+            if compliance and compliance != "None":
+                filter_conditions.append({"@contains": {"compliance": compliance}})
+                applied_filters["compliance"] = compliance
+            if category:
+                filter_conditions.append({"@eq": {"category": category}})
+                applied_filters["category"] = category
                 
-            # Grab high scoring chunks
-            if score > 0:
-                relevant_chunks.append({
-                    "chunk_text": chunk["chunk_text"],
-                    "score": score,
-                    "metadata": meta
+            cortex_filter = None
+            if len(filter_conditions) == 1:
+                cortex_filter = filter_conditions[0]
+            elif len(filter_conditions) > 1:
+                cortex_filter = {"@and": filter_conditions}
+                
+            svc = root.databases["STRUCTZERO_DB"].schemas["ENTERPRISE"].cortex_search_services["STRUCTZERO_KNOWLEDGE_SEARCH"]
+            
+            resp = svc.search(
+                query=prompt,
+                columns=["chunk_text", "source", "category", "cloud", "compliance", "technology"],
+                filter=cortex_filter,
+                limit=limit
+            )
+            
+            for result in resp.results:
+                returned_chunks.append({
+                    "chunk_text": result.get("chunk_text", ""),
+                    "metadata": {
+                        "source": result.get("source", "Unknown"),
+                        "cloud": result.get("cloud", ""),
+                        "compliance": result.get("compliance", ""),
+                        "category": result.get("category", "")
+                    },
+                    "score": 0.95, # Default high confidence for semantic search
                 })
-                
-        # Sort by score descending and take top N (e.g. 15 chunks)
-        relevant_chunks.sort(key=lambda x: x["score"], reverse=True)
-        top_chunks = relevant_chunks[:15]
+            cortex_used = True
+            
+        except Exception as e:
+            print(f"Warning: Cortex Search failed ({e}). Falling back to legacy SQL retrieval.")
+            
+        if not cortex_used:
+            # Legacy Fallback
+            sql = f"SELECT DATA FROM KNOWLEDGE_CHUNKS"
+            results = self.session.sql(sql).collect()
+            
+            relevant_chunks = []
+            for row in results:
+                chunk = json.loads(row["DATA"])
+                meta = chunk.get("metadata", {})
+                score = 0
+                if "General" in meta.get("category", "") or not meta:
+                    score += 1
+                if cloud and cloud != "None" and (cloud in meta.get("cloud", []) or cloud in meta.get("tags", [])):
+                    score += 5
+                if compliance and compliance != "None" and (compliance in meta.get("compliance", []) or compliance in meta.get("tags", [])):
+                    score += 5
+                    
+                if score > 0:
+                    relevant_chunks.append({
+                        "chunk_text": chunk["chunk_text"],
+                        "score": score,
+                        "metadata": meta
+                    })
+                    
+            relevant_chunks.sort(key=lambda x: x["score"], reverse=True)
+            returned_chunks = relevant_chunks[:limit]
+            
+        latency = time.time() - start_time
         
-        # Return formatted strings
-        return [f"[{c['metadata'].get('title', 'Knowledge')}] (Confidence {min(0.99, 0.70 + (c['score']/100))}): {c['chunk_text']}" for c in top_chunks]
+        # Log telemetry
+        telemetry_event = {
+            "id": str(uuid.uuid4()),
+            "timestamp": time.time(),
+            "query": prompt,
+            "engine": "Cortex Search" if cortex_used else "Legacy SQL",
+            "latency_sec": latency,
+            "returned_count": len(returned_chunks),
+            "applied_filters": applied_filters
+        }
+        self._save_object("SEARCH_TELEMETRY", telemetry_event["id"], telemetry_event)
+        
+        return returned_chunks
 
     def list_projects(self):
         results = self.session.sql("SELECT ID, DATA FROM PROJECTS").collect()

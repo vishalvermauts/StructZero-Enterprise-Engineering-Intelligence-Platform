@@ -1,9 +1,18 @@
+"""
+Cortex Gateway Module
+=====================
+Provides a clean abstraction over Snowflake Cortex AI services via Snowpark.
+Handles model routing, token estimation, cost calculation, and API resilience.
+"""
 import os
 
 from snowflake.snowpark import Session
 from snowflake.snowpark.context import get_active_session
 
 class CortexGateway:
+    """
+    Manages connections to Snowflake Cortex and acts as the execution engine for all LLM calls.
+    """
     def __init__(self):
         try:
             # Native Streamlit in Snowflake (SiS) uses the active session automatically
@@ -22,6 +31,7 @@ class CortexGateway:
         self.reset_metrics()
 
     def reset_metrics(self):
+        """Resets the telemetry counters for a new execution pipeline."""
         self.total_calls = 0
         self.estimated_input_tokens = 0
         self.estimated_output_tokens = 0
