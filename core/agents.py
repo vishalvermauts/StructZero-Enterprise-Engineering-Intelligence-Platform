@@ -1,3 +1,5 @@
+# Agent personas for the StructZero architecture review board.
+# Co-authored with CoCo
 """
 AI Agents Module
 ================
@@ -8,6 +10,7 @@ and delegates execution to the Cortex Gateway.
 from core.models import PlanningRequest
 from core.cortex_gateway import CortexGateway
 from core.prompts import (
+    REVISION_PROMPT,
     ARCHITECT_SYSTEM_PROMPT, 
     CRITICAL_REVIEWER_PROMPT,
     SECURITY_REVIEWER_PROMPT,
@@ -89,5 +92,22 @@ class SynthesizerAgent:
         
         === PERFORMANCE REVIEW ===
         {performance}
+        """
+        return self.gateway.complete(full_prompt, MODEL_ROUTER["synthesizer"])
+
+    def revise(self, blocked_markdown: str, blocking_concerns: str) -> str:
+        """
+        Produce a corrected version after the review board BLOCKED the current one.
+        Called by the pipeline revision loop, so a block sends the design back for rework
+        instead of terminating the run.
+        """
+        full_prompt = f"""
+        {REVISION_PROMPT}
+
+        === BLOCKING CONCERNS FROM THE REVIEW BOARD ===
+        {blocking_concerns}
+
+        === BLOCKED VERSION OF THE BLUEPRINT ===
+        {blocked_markdown}
         """
         return self.gateway.complete(full_prompt, MODEL_ROUTER["synthesizer"])

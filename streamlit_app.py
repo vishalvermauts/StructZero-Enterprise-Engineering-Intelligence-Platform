@@ -1,3 +1,5 @@
+# Streamlit dashboard for the StructZero enterprise architecture review board.
+# Co-authored with CoCo
 """
 Streamlit UI Dashboard Module
 =============================
@@ -97,9 +99,14 @@ st.markdown("### Advanced AI Software Architecture Copilot")
 tab_gen, tab_analytics, tab_batch = st.tabs(["🏗️ Architecture Generator", "📊 Decision Analytics (Cortex Analyst)", "🧪 Batch Tester"])
 
 with tab_gen:
-    prompt = st.text_area("Planning Request", placeholder="e.g., Design a scalable payment microservice...", height=150)
-    
-    if st.button("Generate Blueprint", type="primary", use_container_width=True):
+    # Prompt and submit live inside a form so editing or pasting text does not trigger a
+    # script rerun. A rerun landing while the pipeline was still blocked in a Cortex call
+    # left the previous run's elements on screen, duplicating the header below the timeline.
+    with st.form("planning_request_form"):
+        prompt = st.text_area("Planning Request", placeholder="e.g., Design a scalable payment microservice...", height=150)
+        submitted = st.form_submit_button("Generate Blueprint", type="primary", use_container_width=True)
+
+    if submitted:
         if not prompt:
             st.warning("Please enter a planning request.")
         else:

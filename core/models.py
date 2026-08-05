@@ -1,3 +1,5 @@
+# Dataclasses describing StructZero blueprints, telemetry and knowledge records.
+# Co-authored with CoCo
 """
 Core Models Module
 ==================
@@ -10,13 +12,19 @@ from typing import List, Dict, Optional
 import uuid
 import datetime
 
+
+def _utc_now() -> str:
+    """Timezone-aware UTC timestamp. datetime.now() is node-local and drifted by up to
+    12.5 hours between app restarts, which corrupted history ordering."""
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
 @dataclass
 class Project:
     """Represents an overarching enterprise project containing multiple blueprints."""
     name: str
     description: str = ""
     owner: str = "Unknown"
-    created_at: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    created_at: str = field(default_factory=_utc_now)
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 @dataclass
@@ -45,6 +53,12 @@ class ValidationResult:
         "Consistency": 100,
         "Compliance": 100
     })
+    # Raw first-line verdict per reviewer, and the combined board outcome.
+    board_votes: Dict[str, str] = field(default_factory=dict)
+    board_decision: Optional[str] = None
+    # Categories that produced a hard error. Security/Compliance errors are the only
+    # ones severe enough to reject on their own; everything else degrades to a warning.
+    blocking_categories: List[str] = field(default_factory=list)
 
 @dataclass
 class DebateSession:
@@ -58,6 +72,8 @@ class DebateSession:
     critical_vote: str = ""
     security_vote: str = ""
     performance_vote: str = ""
+    revision_rounds: int = 0
+    revision_history: List[str] = field(default_factory=list)
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 @dataclass
@@ -83,6 +99,8 @@ class ExecutionMetrics:
     estimated_output_tokens: int = 0
     estimated_cost_usd: float = 0.0
     
+    revision_rounds: int = 0
+    board_decision: str = ""
     blueprint_score: int = 0
     security_score: int = 0
     performance_score: int = 0
@@ -105,7 +123,7 @@ class Blueprint:
     raw_markdown: str = ""
     mermaid_diagram: str = ""
     validation: ValidationResult = None
-    created_at: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    created_at: str = field(default_factory=_utc_now)
     
     def to_dict(self):
         return {
@@ -126,7 +144,10 @@ class Blueprint:
                 "warnings": self.validation.warnings,
                 "errors": self.validation.errors,
                 "overall_score": self.validation.overall_score,
-                "category_scores": self.validation.category_scores
+                "category_scores": self.validation.category_scores,
+                "board_votes": self.validation.board_votes,
+                "board_decision": self.validation.board_decision,
+                "blocking_categories": self.validation.blocking_categories
             } if self.validation else None,
             "created_at": self.created_at
         }
@@ -146,8 +167,12 @@ class KnowledgeDocument:
     confidence: float = 1.0
     version: str = "1.0"
     author: str = "System"
-    created_at: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    created_at: str = field(default_factory=_utc_now)
+    updated_at: str = field(default_factory=_utc_now)
+    # Frontmatter keys with no dedicated field above (provider, language, framework,
+    # architecture_pattern, document_type, ...). Passed through to chunk metadata so the
+    # KNOWLEDGE_SEARCH_VIEW columns and Cortex Search attributes can resolve them.
+    extra: Dict = field(default_factory=dict)
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 @dataclass
@@ -168,5 +193,5 @@ class KnowledgeRegistryEntry:
     loader: str
     indexing_status: str = "PENDING" # PENDING, INDEXED, FAILED
     version: str = "1.0"
-    ingestion_time: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    ingestion_time: str = field(default_factory=_utc_now)
     id: str = field(default_factory=lambda: str(uuid.uuid4()))

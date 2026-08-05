@@ -1,3 +1,5 @@
+# Snowpark persistence layer for StructZero JSON variant documents.
+# Co-authored with CoCo
 """
 Storage Client Module
 =====================
@@ -23,24 +25,39 @@ class StorageClient:
 
     def setup_tables(self):
         tables = [
-            "PROJECTS", "BLUEPRINTS", "DEBATE_SESSIONS", "VALIDATIONS", "OBSERVABILITY",
-            "KNOWLEDGE_REGISTRY", "KNOWLEDGE_DOCUMENTS", "KNOWLEDGE_CHUNKS"
+            "PROJECTS", "BLUEPRINTS", "BLUEPRINT_HISTORY", "DEBATE_SESSIONS",
+            "VALIDATIONS", "VALIDATION_RESULTS", "PIPELINE_RUNS", "OBSERVABILITY",
+            "KNOWLEDGE_REGISTRY", "KNOWLEDGE_DOCUMENTS", "KNOWLEDGE_CHUNKS",
+            "SEARCH_TELEMETRY"
         ]
         for table in tables:
-            self.session.sql(f"CREATE TABLE IF NOT EXISTS {table} (ID VARCHAR, DATA VARIANT)").collect()
+            self.session.sql(
+                f"""CREATE TABLE IF NOT EXISTS {table} (
+                    ID VARCHAR(100) DEFAULT UUID_STRING(),
+                    DATA VARIANT,
+                    CREATED_AT TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+                )"""
+            ).collect()
 
     def _save_object(self, table: str, obj_id: str, data: dict):
         data_json = json.dumps(data)
-        
-        # Upsert logic (delete then insert) to handle versioning updates cleanly for MVP
-        self.session.sql(f"DELETE FROM {table} WHERE ID = '{obj_id}'").collect()
-        # Use Snowflake double-dollar string literal to avoid escaping nightmares
-        safe_json = data_json.replace("$$", "\\$\\$")
-        sql = f"""
-        INSERT INTO {table} (ID, DATA)
-        SELECT '{obj_id}', PARSE_JSON($${safe_json}$$)
-        """
-        self.session.sql(sql).collect()
+
+        # Upsert logic (delete then insert) to handle versioning updates cleanly for MVP.
+        # Values are bound, never interpolated: blueprint markdown routinely contains
+        # quotes and '$$' sequences that would otherwise corrupt the statement.
+        self.session.sql(f"DELETE FROM {table} WHERE ID = ?", params=[obj_id]).collect()
+        self.session.sql(
+            f"INSERT INTO {table} (ID, DATA) SELECT ?, PARSE_JSON(?)",
+            params=[obj_id, data_json],
+        ).collect()
+
+    def _append_object(self, table: str, obj_id: str, data: dict):
+        """Insert-only write for append-only audit tables (no delete-then-insert)."""
+        self.session.sql(
+            f"INSERT INTO {table} (ID, DATA) SELECT ?, PARSE_JSON(?)",
+            params=[obj_id, json.dumps(data)],
+        ).collect()
+
 
     def save_project(self, project: Project):
         self._save_object("PROJECTS", project.id, dataclasses.asdict(project))
@@ -54,21 +71,91 @@ class StorageClient:
     def save_observability(self, run_id: str, blueprint_id: str, metrics: dict):
         self._save_object("OBSERVABILITY", run_id, metrics)
 
+    def save_validation(self, blueprint_id: str, validation: dict):
+        """Persist the validation verdict as a first-class record, keyed by blueprint."""
+        self._save_object("VALIDATIONS", blueprint_id, {
+            "blueprint_id": blueprint_id,
+            **validation,
+        })
+
+    def save_validation_results(self, blueprint_id: str, validation: dict):
+        """Explode the verdict into one row per individual rule finding."""
+        import uuid
+        for category, score in (validation.get("category_scores") or {}).items():
+            self._append_object("VALIDATION_RESULTS", str(uuid.uuid4()), {
+                "blueprint_id": blueprint_id,
+                "finding_type": "CATEGORY_SCORE",
+                "category": category,
+                "score": score,
+                "message": None,
+            })
+        for msg in validation.get("errors") or []:
+            self._append_object("VALIDATION_RESULTS", str(uuid.uuid4()), {
+                "blueprint_id": blueprint_id,
+                "finding_type": "ERROR",
+                "category": None,
+                "score": None,
+                "message": msg,
+            })
+        for msg in validation.get("warnings") or []:
+            self._append_object("VALIDATION_RESULTS", str(uuid.uuid4()), {
+                "blueprint_id": blueprint_id,
+                "finding_type": "WARNING",
+                "category": None,
+                "score": None,
+                "message": msg,
+            })
+
+    def save_pipeline_run(self, run: dict):
+        """Append one row per pipeline execution, including failed runs."""
+        self._append_object("PIPELINE_RUNS", run["id"], run)
+
+    def save_blueprint_history(self, blueprint: Blueprint):
+        """Append-only snapshot of every blueprint version ever produced."""
+        self._append_object("BLUEPRINT_HISTORY", blueprint.id, blueprint.to_dict())
+
+    def count_knowledge_corpus(self) -> dict:
+        """Actual size of the indexed corpus, for search telemetry."""
+        try:
+            row = self.session.sql(
+                """SELECT (SELECT COUNT(*) FROM KNOWLEDGE_DOCUMENTS) AS DOCS,
+                          (SELECT COUNT(*) FROM KNOWLEDGE_CHUNKS) AS CHUNKS"""
+            ).collect()[0]
+            return {"documents": int(row["DOCS"]), "chunks": int(row["CHUNKS"])}
+        except Exception as e:
+            print(f"Warning: could not count knowledge corpus: {e}")
+            return {"documents": 0, "chunks": 0}
+
     # --- Knowledge Storage Methods ---
     def upsert_knowledge_registry(self, entry: dict):
-        self._save_object("KNOWLEDGE_REGISTRY", entry["id"], entry)
+        # The registry is keyed by source_path, not by the entry's freshly minted uuid.
+        # Deleting on uuid alone would leave one stale row per re-ingest, and the stale row
+        # could win the lookup in get_knowledge_registry_by_path.
+        self.session.sql(
+            "DELETE FROM KNOWLEDGE_REGISTRY WHERE DATA:source_path::STRING = ?",
+            params=[entry["source_path"]],
+        ).collect()
+        self._append_object("KNOWLEDGE_REGISTRY", entry["id"], entry)
         
     def get_knowledge_registry_by_path(self, path: str):
-        sql = f"SELECT DATA FROM KNOWLEDGE_REGISTRY WHERE DATA:source_path::STRING = '{path}'"
-        results = self.session.sql(sql).collect()
+        # upsert_knowledge_registry keeps at most one row per path; ordering on
+        # ingestion_time (a DATA field, since this table has no CREATED_AT column)
+        # makes the lookup deterministic even if a legacy duplicate survives.
+        sql = """SELECT DATA FROM KNOWLEDGE_REGISTRY
+                 WHERE DATA:source_path::STRING = ?
+                 ORDER BY DATA:ingestion_time::STRING DESC LIMIT 1"""
+        results = self.session.sql(sql, params=[path]).collect()
         return json.loads(results[0]["DATA"]) if results else None
         
     def upsert_knowledge_document(self, doc: dict):
         self._save_object("KNOWLEDGE_DOCUMENTS", doc["id"], doc)
         
     def clear_document_chunks(self, document_id: str):
-        self.session.sql(f"DELETE FROM KNOWLEDGE_CHUNKS WHERE DATA:document_id::STRING = '{document_id}'").collect()
-        
+        self.session.sql(
+            "DELETE FROM KNOWLEDGE_CHUNKS WHERE DATA:document_id::STRING = ?",
+            params=[document_id],
+        ).collect()
+
     def upsert_knowledge_chunk(self, chunk: dict):
         self._save_object("KNOWLEDGE_CHUNKS", chunk["id"], chunk)
 
@@ -98,21 +185,32 @@ class StorageClient:
                 filter_conditions.append({"@eq": {"category": category}})
                 applied_filters["category"] = category
                 
-            cortex_filter = None
-            if len(filter_conditions) == 1:
-                cortex_filter = filter_conditions[0]
-            elif len(filter_conditions) > 1:
-                cortex_filter = {"@and": filter_conditions}
-                
+            # Progressive widening. Requiring every filter to match excluded documents that
+            # carry no cloud/compliance tag at all (the CQRS pattern, the Redis incident),
+            # even though those apply universally - so any non-AWS target retrieved nothing.
+            attempts = []
+            if len(filter_conditions) > 1:
+                attempts.append(("all filters", {"@and": filter_conditions}))
+                attempts.append(("any filter", {"@or": filter_conditions}))
+            elif len(filter_conditions) == 1:
+                attempts.append(("all filters", filter_conditions[0]))
+            attempts.append(("unfiltered", None))
+
             svc = root.databases["STRUCTZERO_DB"].schemas["ENTERPRISE"].cortex_search_services["STRUCTZERO_KNOWLEDGE_SEARCH"]
-            
-            resp = svc.search(
-                query=prompt,
-                columns=["chunk_text", "source", "category", "cloud", "compliance", "technology"],
-                filter=cortex_filter,
-                limit=limit
-            )
-            
+
+            resp = None
+            for label, attempt_filter in attempts:
+                resp = svc.search(
+                    query=prompt,
+                    columns=["chunk_text", "source", "category", "cloud", "compliance", "technology"],
+                    filter=attempt_filter,
+                    limit=limit
+                )
+                if resp.results:
+                    applied_filters["match_mode"] = label
+                    break
+                applied_filters["match_mode"] = f"{label} (empty)"
+
             for result in resp.results:
                 returned_chunks.append({
                     "chunk_text": result.get("chunk_text", ""),
@@ -131,21 +229,32 @@ class StorageClient:
             
         if not cortex_used:
             # Legacy Fallback
-            sql = f"SELECT DATA FROM KNOWLEDGE_CHUNKS"
+            sql = "SELECT DATA FROM KNOWLEDGE_CHUNKS"
             results = self.session.sql(sql).collect()
             
             relevant_chunks = []
             for row in results:
                 chunk = json.loads(row["DATA"])
                 meta = chunk.get("metadata", {})
-                score = 0
+                # Baseline of 1 so an untagged but universally applicable document stays
+                # eligible; tag matches then rank it higher. Previously untagged chunks
+                # scored 0 and were discarded entirely.
+                score = 1
                 if "General" in meta.get("category", "") or not meta:
                     score += 1
-                if cloud and cloud != "None" and (cloud in meta.get("cloud", []) or cloud in meta.get("tags", [])):
-                    score += 5
-                if compliance and compliance != "None" and (compliance in meta.get("compliance", []) or compliance in meta.get("tags", [])):
-                    score += 5
-                    
+                doc_cloud = meta.get("cloud") or []
+                doc_comp = meta.get("compliance") or []
+                if cloud and cloud != "None":
+                    if cloud in doc_cloud or cloud in meta.get("tags", []):
+                        score += 5
+                    elif not doc_cloud:
+                        score += 2   # cloud-agnostic guidance
+                if compliance and compliance != "None":
+                    if compliance in doc_comp or compliance in meta.get("tags", []):
+                        score += 5
+                    elif not doc_comp:
+                        score += 2   # regime-agnostic guidance
+
                 if score > 0:
                     relevant_chunks.append({
                         "chunk_text": chunk["chunk_text"],
@@ -177,18 +286,18 @@ class StorageClient:
         return [json.loads(row["DATA"]) for row in results]
 
     def list_project_versions(self, project_id: str):
-        sql = f"SELECT DATA FROM BLUEPRINTS WHERE DATA:project_id::STRING = '{project_id}' ORDER BY DATA:version::INT DESC"
-        results = self.session.sql(sql).collect()
+        sql = "SELECT DATA FROM BLUEPRINTS WHERE DATA:project_id::STRING = ? ORDER BY DATA:version::INT DESC"
+        results = self.session.sql(sql, params=[project_id]).collect()
         return [json.loads(row["DATA"]) for row in results]
 
     def get_blueprint(self, blueprint_id: str):
-        sql = f"SELECT DATA FROM BLUEPRINTS WHERE ID = '{blueprint_id}'"
-        results = self.session.sql(sql).collect()
+        sql = "SELECT DATA FROM BLUEPRINTS WHERE ID = ?"
+        results = self.session.sql(sql, params=[blueprint_id]).collect()
         return json.loads(results[0]["DATA"]) if results else None
         
     def get_debate_session(self, blueprint_id: str):
-        sql = f"SELECT DATA FROM DEBATE_SESSIONS WHERE DATA:blueprint_id::STRING = '{blueprint_id}'"
-        results = self.session.sql(sql).collect()
+        sql = "SELECT DATA FROM DEBATE_SESSIONS WHERE DATA:blueprint_id::STRING = ?"
+        results = self.session.sql(sql, params=[blueprint_id]).collect()
         return json.loads(results[0]["DATA"]) if results else None
         
     def get_validation_report(self, blueprint_id: str):
@@ -199,13 +308,12 @@ class StorageClient:
         return None
 
     def search_blueprints(self, query: str):
-        safe_query = query.replace("'", "''")
-        # MVP: Basic ILIKE search on raw markdown
-        sql = f"SELECT DATA FROM BLUEPRINTS WHERE DATA:raw_markdown::STRING ILIKE '%{safe_query}%'"
-        results = self.session.sql(sql).collect()
+        # Basic ILIKE search on raw markdown; the term is bound, not interpolated
+        sql = "SELECT DATA FROM BLUEPRINTS WHERE DATA:raw_markdown::STRING ILIKE ?"
+        results = self.session.sql(sql, params=[f"%{query}%"]).collect()
         return [json.loads(row["DATA"]) for row in results]
 
     def get_blueprint_history(self):
-        sql = "SELECT ID, DATA FROM BLUEPRINTS ORDER BY DATA:created_at::STRING DESC LIMIT 20"
+        sql = "SELECT ID, DATA FROM BLUEPRINTS ORDER BY CREATED_AT DESC LIMIT 20"
         results = self.session.sql(sql).collect()
         return [{"id": row["ID"], "data": json.loads(row["DATA"])} for row in results]

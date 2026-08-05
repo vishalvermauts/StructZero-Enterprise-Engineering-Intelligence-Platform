@@ -1,3 +1,5 @@
+# Idempotent bootstrap for the StructZero database, tables, views and Cortex Search service.
+# Co-authored with CoCo
 """
 Schema Setup Module
 ===================
@@ -25,7 +27,8 @@ def setup_database():
     session = Session.builder.configs(connection_parameters).create()
     
     tables = [
-        "PROJECTS", "BLUEPRINTS", "DEBATE_SESSIONS", "VALIDATIONS", "OBSERVABILITY",
+        "PROJECTS", "BLUEPRINTS", "BLUEPRINT_HISTORY", "DEBATE_SESSIONS",
+        "VALIDATIONS", "VALIDATION_RESULTS", "PIPELINE_RUNS", "OBSERVABILITY",
         "KNOWLEDGE_REGISTRY", "KNOWLEDGE_DOCUMENTS", "KNOWLEDGE_CHUNKS",
         "SEARCH_TELEMETRY"
     ]
