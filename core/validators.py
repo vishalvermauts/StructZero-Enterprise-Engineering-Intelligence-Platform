@@ -99,18 +99,21 @@ class ProductionValidator:
             if not re.search(rf"#+.*{re.escape(section)}", md, re.IGNORECASE):
                 deduct("Completeness", 5, f"Missing expected section: {section}")
 
-        graphviz_matches = re.findall(r"```graphviz(.*?)```", md, re.DOTALL)
-        if not graphviz_matches:
-            deduct("Completeness", 10, "Missing Graphviz Diagram block.", is_error=True)
-        elif len(graphviz_matches) > 1:
-            deduct("Consistency", 5, "Multiple Graphviz Diagram blocks found. Only the first will be rendered.")
+        graphviz_matches = re.findall(r"```graphviz(.*?)```", md, re.DOTALL | re.IGNORECASE)
+        mermaid_matches = re.findall(r"```mermaid(.*?)```", md, re.DOTALL | re.IGNORECASE)
+        diagram_matches = graphviz_matches + mermaid_matches
+        
+        if not diagram_matches:
+            deduct("Completeness", 10, "Missing Graphviz or Mermaid Diagram block.", is_error=True)
+        elif len(diagram_matches) > 1:
+            deduct("Consistency", 5, "Multiple Diagram blocks found. Only the first will be rendered.")
 
         # ------------------------------------------- diagram vs prose cross-reference
         # A diagram whose components are never described is a genuine defect and is
         # invisible to keyword checks.
-        if graphviz_matches:
-            diagram = graphviz_matches[0]
-            prose = re.sub(r"```graphviz.*?```", "", md, flags=re.DOTALL).lower()
+        if diagram_matches:
+            diagram = diagram_matches[0]
+            prose = re.sub(r"```(graphviz|mermaid).*?```", "", md, flags=re.DOTALL | re.IGNORECASE).lower()
             labels = re.findall(r'label\s*=\s*"([^"]{3,60})"', diagram)
             if not labels:
                 labels = re.findall(r'^\s*([A-Za-z][A-Za-z0-9_]{2,40})\s*\[', diagram, re.M)

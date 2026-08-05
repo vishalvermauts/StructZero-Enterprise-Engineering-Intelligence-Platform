@@ -157,7 +157,7 @@ Current checks:
 | Check | Category | Severity |
 |---|---|---|
 | Core sections present | Completeness | error |
-| Graphviz diagram block present | Completeness | error |
+| Graphviz or Mermaid diagram block present | Completeness | error |
 | Multiple diagram blocks | Consistency | warning |
 | Diagram nodes described in prose (orphan detection) | Consistency | error |
 | Compliance-regime obligations for the selected target | Compliance | error / warning |
@@ -323,6 +323,14 @@ uv run python -m core.setup_schema
 Creates the database, schema, VARIANT tables (`CREATE TABLE IF NOT EXISTS` — existing data is not
 dropped), `KNOWLEDGE_SEARCH_VIEW`, `ENTERPRISE_ANALYTICS_V`, the Cortex Search service and the
 `ANALYST_MODELS` stage.
+
+### Headless CLI Execution
+
+For automated workflows, you can run the pipeline headlessly. The CLI provides live streaming telemetry of the multi-agent debate, including real-time Reviewer votes and validator scoring:
+
+```bash
+uv run python cli.py --cloud "AWS" --compliance "PCI-DSS" --prompt "Design a highly available API gateway"
+```
 
 ### Run locally
 
