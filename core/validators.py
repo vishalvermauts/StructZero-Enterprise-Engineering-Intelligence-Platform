@@ -198,8 +198,21 @@ class ProductionValidator:
                        f"no evidence recommendations were genuinely weighed.")
 
         # ----------------------------------------------------- legacy sanity checks
-        if "kafka" in lower_md and not re.search(r"(broker|event|queue|stream)", lower_md):
-            deduct("Consistency", 5, "Kafka is mentioned but no event/broker terminology found.")
+        if "kafka" in lower_md or "msk" in lower_md:
+            if not re.search(r"(broker|event|queue|stream)", lower_md):
+                deduct("Consistency", 5, "Kafka is mentioned but no event/broker terminology found.")
+            
+            # Incident 211: Kafka Consumer Lag Cascade
+            if re.search(r"database|rds|postgresql|aurora|mysql", lower_md):
+                if not re.search(r"dead[- ]letter|\bdlq\b|retry", lower_md):
+                    deduct("Consistency", 15, 
+                           "Kafka and database writes mentioned, but no dead-letter topic (DLQ) or bounded retry specified (Incident 211).", 
+                           is_error=True)
+            if not re.search(r"lag|alert|slo", lower_md):
+                deduct("Consistency", 10, 
+                       "Kafka mentioned but no consumer lag alerting specified (Incident 211).", 
+                       is_error=True)
+
         if "redis" in lower_md and not re.search(r"(cache|caching)", lower_md):
             deduct("Consistency", 5, "Redis is mentioned but caching strategy is missing.")
         if not re.search(r"(encryption|tls|kms|encrypt)", lower_md):
