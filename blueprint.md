@@ -2,447 +2,466 @@
 
 ## Accepted
 
-✓ Include explicit cross-region data volume definition with cost controls
+✓ **Add explicit data volume per region in assumptions**
 
 Reason:
-High severity (90% confidence) finding with clear business impact. Cross-region egress costs can be significant and unpredictable without explicit volume controls.
+Medium severity finding with 80% confidence. The current assumption only states cross-region transfer volume without regional breakdown, which is needed for capacity planning.
 
 ---
 
-✓ Enforce TLS 1.2+ for all AWS storage services
+✓ **Plan partition management strategy for MSK scalability**
 
 Reason:
-High severity (100% confidence) security requirement. Critical for PCI-DSS compliance and enterprise security standards.
+High severity finding with 90% confidence. The 1000 partition limit per MSK cluster represents a real scalability bottleneck that requires proactive planning.
 
 ---
 
-✓ Specify KMS key rotation period not exceeding 365 days
+✓ **Explicitly state storage location constraints for buckets and datasets**
 
 Reason:
-High severity (100% confidence) compliance requirement. Essential for maintaining security posture and regulatory compliance.
+High severity finding with 100% confidence from security review. Critical for GDPR compliance to ensure EU data remains in EU regions.
 
 ---
 
-✓ Implement idempotency store for duplicate request handling
+✓ **Configure log sinks to not export to non-EU destinations**
 
 Reason:
-Medium severity (80% confidence) with clear performance benefit. Critical for payment processing reliability.
+High severity finding with 100% confidence. Essential for maintaining data residency compliance for audit logs.
 
 ---
 
-✓ Define DynamoDB partition key strategy
+✓ **Document support access transparency requirements**
 
 Reason:
-Medium severity (90% confidence) with high impact on performance. Hot partitions can cause significant service degradation.
+High severity finding with 100% confidence. Required for GDPR compliance when support access originates outside EU.
 
 ---
 
-✓ Define Redis eviction strategy
+✓ **Ensure key rings match data residency regions**
 
 Reason:
-Medium severity (90% confidence) operational requirement. Cache management is critical for performance stability.
+High severity finding with 100% confidence. Critical for maintaining encryption key locality with data residency requirements.
+
+---
+
+✓ **Document 30-day erasure implementation requirement**
+
+Reason:
+High severity finding with 100% confidence. GDPR mandates specific timelines for data subject rights fulfillment.
+
+---
+
+✓ **Specify machine-readable export format for data portability**
+
+Reason:
+High severity finding with 100% confidence. Required for GDPR Article 20 compliance.
+
+---
+
+✓ **Define automatic retention enforcement per data category**
+
+Reason:
+High severity finding with 100% confidence. Manual retention management creates compliance risks.
+
+---
+
+✓ **Explicitly pin read paths to same-region replicas**
+
+Reason:
+High severity finding with 95% confidence. Critical for maintaining data residency and reducing latency.
+
+---
+
+✓ **Define cost alarms at 20%, 50%, and 80% thresholds**
+
+Reason:
+Critical severity finding with 100% confidence. Essential for cost control in multi-region architecture.
 
 ---
 
 ## Rejected
 
-✗ Replace RDS PostgreSQL with Aurora or distributed database
+✗ **Simplify key management approach by reducing regional key rings**
 
 Reason:
-High severity claim but insufficient justification. RDS PostgreSQL with read replicas meets stated requirements of 10K concurrent connections and sub-200ms response times. Aurora migration adds complexity without clear benefit for current scale.
-
----
-
-✗ Remove either Lambda or ECS Fargate to reduce complexity
-
-Reason:
-Medium severity but architecturally unsound. Lambda and ECS serve different use cases - Lambda for lightweight processing, ECS for long-running services. Both are justified in a microservices architecture.
-
----
-
-✗ Implement redundant API Gateway instances
-
-Reason:
-High severity claim but technically incorrect. AWS API Gateway is already a managed service with built-in redundancy across AZs. Additional load balancer would add unnecessary complexity.
+Low severity finding with only 60% confidence. Regional key rings are necessary for GDPR compliance and data residency requirements, despite added complexity.
 
 ---
 
 ## Modified
 
-△ Enhanced envelope encryption implementation details for S3
+**Clarify cross-region replication strategy for GDPR compliance**
 
 Reason:
-Medium severity (70% confidence) finding correctly identifies missing implementation details. Added comprehensive envelope encryption specification.
+Critical severity finding with 95% confidence. The architectural paradox between cross-region replication and data residency needs resolution. Modified to implement selective replication with strict data residency controls.
 
-△ Expanded private endpoints usage beyond current specification
-
-Reason:
-Medium severity (100% confidence) security requirement. Extended private endpoint usage to all applicable AWS services.
-
-△ Clarified same-region access pattern assumption with monitoring
-
-Reason:
-Medium severity (80% confidence) finding about unsupported assumption. Added monitoring and validation mechanisms rather than removing the assumption.
+---
 
 # Executive Summary
 
-This blueprint defines a production-ready, highly available API gateway and backend service architecture on AWS, compliant with PCI-DSS requirements. The solution implements a multi-AZ deployment with auto-scaling capabilities, comprehensive security controls including tokenization at the edge, and robust monitoring. The architecture supports regional failover with explicit data volume controls, idempotency guarantees, and comprehensive cost management.
+This architecture blueprint defines a production-ready global user tracking pipeline that addresses GDPR compliance requirements while maintaining real-time performance. The system processes user behavior data through a distributed streaming architecture with strict data residency controls, regional encryption, and comprehensive subject rights implementation. Version 2 addresses critical compliance gaps and performance bottlenecks identified in the architectural review.
 
 # Requirements
 
 ## Functional Requirements
-- High availability API gateway with 99.9% uptime SLA
-- Auto-scaling backend services based on demand
-- PCI-DSS compliant cardholder data handling with tokenization at edge
-- Regional disaster recovery capabilities
-- Real-time monitoring and alerting
-- Idempotent request processing for payment operations
-- Duplicate request detection and handling
+- Real-time global user tracking data ingestion and processing
+- GDPR compliance for EU personal data processing with 30-day erasure capability
+- Session caching and user preference management
+- Stream processing of user behavior data
+- Data persistence in relational database with automatic retention enforcement
+- Selective cross-region metadata replication with strict residency controls
+- Data subject rights implementation (erasure, portability, retention)
+- Machine-readable data export per data subject
 
 ## Non-Functional Requirements
-- Support for 10,000 concurrent connections
-- Sub-200ms API response times
-- TLS 1.3 encryption for all transit
-- TLS 1.2+ minimum for all AWS storage services
-- Customer Managed KMS keys for all data at rest
-- Network segmentation for cardholder data environment (CDE)
-- KMS key rotation period not exceeding 365 days
-- Cross-region data egress monitoring and cost controls
+- Cost monitoring and egress control with automated alarms
+- 99.9% uptime target
+- Storage location constraints pinning EU data to EU regions
+- Log sinks restricted to same-region destinations
+- Support access transparency for non-EU access
+- Regional key ring topology matching data residency
 
 # Architecture Diagram
 
 ```graphviz
-digraph Architecture {
+digraph UserTrackingArchitecture {
     rankdir=TB;
     node [shape=box, style=rounded];
     
-    // Client Layer
-    client [label="Client Applications", shape=ellipse, color=blue];
+    // User layer
+    subgraph cluster_users {
+        label="Users";
+        style=filled;
+        color=lightgrey;
+        EU_Users [label="EU Users"];
+        US_Users [label="US Users"];
+    }
     
-    // Edge Layer
-    waf [label="AWS WAF\n(DDoS Protection)", color=orange];
-    apigw [label="API Gateway\n(Regional)", color=orange];
-    tokenizer [label="Edge Tokenization\nService", color=red];
+    // API Gateway layer
+    subgraph cluster_api {
+        label="API Gateway Layer";
+        style=filled;
+        color=lightblue;
+        API_EU [label="API Gateway\nEU (eu-west-1)"];
+        API_US [label="API Gateway\nUS (us-east-1)"];
+    }
     
-    // Load Balancing
-    alb [label="Application\nLoad Balancer", color=orange];
+    // Processing layer
+    subgraph cluster_processing {
+        label="Processing Layer";
+        style=filled;
+        color=lightgreen;
+        Lambda_EU [label="Lambda Processor\nEU"];
+        Lambda_US [label="Lambda Processor\nUS"];
+    }
     
-    // Application Layer
-    ecs [label="ECS Fargate\nCluster", color=green];
-    lambda [label="AWS Lambda\n(Lightweight)", color=green];
-    redis [label="ElastiCache\nRedis Cluster", color=purple];
-    idempotency [label="Idempotency Store\n(Redis)", color=purple];
+    // Caching layer
+    subgraph cluster_cache {
+        label="Caching Layer";
+        style=filled;
+        color=lightyellow;
+        Redis_EU [label="ElastiCache Redis\nEU Multi-AZ"];
+        Redis_US [label="ElastiCache Redis\nUS Multi-AZ"];
+    }
     
-    // Data Layer
-    rds_primary [label="RDS PostgreSQL\nPrimary (Multi-AZ)", color=blue];
-    rds_replica [label="RDS Read\nReplicas", color=lightblue];
-    dynamodb [label="DynamoDB\n(Partitioned)", color=blue];
-    s3 [label="S3 Bucket\n(Envelope Encrypted)", color=blue];
+    // Streaming layer
+    subgraph cluster_streaming {
+        label="Streaming Layer";
+        style=filled;
+        color=lightcoral;
+        MSK_EU [label="MSK Kafka\nEU Cluster"];
+        MSK_US [label="MSK Kafka\nUS Cluster"];
+    }
     
-    // Security & Management
-    kms [label="KMS Customer\nManaged Keys", color=red];
-    secrets [label="Secrets Manager", color=red];
-    vpc_endpoints [label="VPC Endpoints\n(Private Access)", color=gray];
+    // Stream processing
+    subgraph cluster_stream_proc {
+        label="Stream Processing";
+        style=filled;
+        color=lightpink;
+        StreamProc_EU [label="Stream Processor\nEU"];
+        StreamProc_US [label="Stream Processor\nUS"];
+    }
     
-    // Monitoring
-    cloudwatch [label="CloudWatch\nMetrics & Alarms", color=yellow];
-    xray [label="AWS X-Ray\nTracing", color=yellow];
+    // Database layer
+    subgraph cluster_db {
+        label="Database Layer";
+        style=filled;
+        color=lightsteelblue;
+        RDS_EU [label="RDS PostgreSQL\nEU Primary"];
+        RDS_US [label="RDS PostgreSQL\nUS Primary"];
+        RDS_EU_Replica [label="RDS Read Replica\nEU"];
+        RDS_US_Replica [label="RDS Read Replica\nUS"];
+    }
     
-    // Network Security
-    sg [label="Security Groups", color=gray];
-    nacl [label="Network ACLs", color=gray];
+    // GDPR services
+    subgraph cluster_gdpr {
+        label="GDPR Compliance";
+        style=filled;
+        color=orange;
+        GDPR_Service [label="Data Subject\nRights Service"];
+        Retention_Mgr [label="Retention\nManager"];
+        S3_Exports [label="S3 Data Exports\n(Regional)"];
+    }
     
-    // Connections
-    client -> waf [label="TLS 1.3"];
-    waf -> apigw;
-    apigw -> tokenizer [label="PCI Data"];
-    tokenizer -> alb;
-    alb -> ecs;
-    alb -> lambda;
+    // Security & Monitoring
+    subgraph cluster_security {
+        label="Security & Monitoring";
+        style=filled;
+        color=lavender;
+        KMS_EU [label="KMS EU\nKey Ring"];
+        KMS_US [label="KMS US\nKey Ring"];
+        CloudWatch [label="CloudWatch\nCost Alarms"];
+        Audit_Logs [label="Regional\nAudit Logs"];
+    }
     
-    ecs -> redis [label="Session Cache"];
-    ecs -> idempotency [label="Duplicate Check"];
-    ecs -> rds_primary [label="Write Operations"];
-    ecs -> rds_replica [label="Read Operations"];
-    ecs -> dynamodb [label="High Velocity"];
-    ecs -> s3 [label="Object Storage"];
+    // User connections
+    EU_Users -> API_EU;
+    US_Users -> API_US;
+    
+    // API to processing
+    API_EU -> Lambda_EU;
+    API_US -> Lambda_US;
+    
+    // Processing to cache and streaming
+    Lambda_EU -> Redis_EU;
+    Lambda_US -> Redis_US;
+    Lambda_EU -> MSK_EU;
+    Lambda_US -> MSK_US;
+    
+    // Streaming to stream processing
+    MSK_EU -> StreamProc_EU;
+    MSK_US -> StreamProc_US;
+    
+    // Stream processing to database
+    StreamProc_EU -> RDS_EU;
+    StreamProc_US -> RDS_US;
+    
+    // Database replicas
+    RDS_EU -> RDS_EU_Replica;
+    RDS_US -> RDS_US_Replica;
+    
+    // GDPR services connections
+    GDPR_Service -> RDS_EU;
+    GDPR_Service -> RDS_US;
+    GDPR_Service -> S3_Exports;
+    Retention_Mgr -> RDS_EU;
+    Retention_Mgr -> RDS_US;
     
     // Security connections
-    kms -> rds_primary [style=dashed, label="Encryption"];
-    kms -> rds_replica [style=dashed, label="Encryption"];
-    kms -> dynamodb [style=dashed, label="Encryption"];
-    kms -> s3 [style=dashed, label="Envelope Encryption"];
+    KMS_EU -> Redis_EU;
+    KMS_EU -> MSK_EU;
+    KMS_EU -> RDS_EU;
+    KMS_US -> Redis_US;
+    KMS_US -> MSK_US;
+    KMS_US -> RDS_US;
     
-    secrets -> ecs [style=dashed, label="Credentials"];
-    vpc_endpoints -> ecs [style=dashed, label="Private Access"];
+    // Monitoring
+    CloudWatch -> API_EU;
+    CloudWatch -> API_US;
+    Audit_Logs -> Lambda_EU;
+    Audit_Logs -> Lambda_US;
     
-    // Monitoring connections
-    cloudwatch -> ecs [style=dotted];
-    cloudwatch -> rds_primary [style=dotted];
-    xray -> ecs [style=dotted];
-    
-    // Security enforcement
-    sg -> ecs [style=dashed];
-    nacl -> ecs [style=dashed];
-    
-    // Grouping
-    subgraph cluster_edge {
-        label="Edge Layer";
-        color=orange;
-        waf; apigw; tokenizer;
-    }
-    
-    subgraph cluster_app {
-        label="Application Layer";
-        color=green;
-        alb; ecs; lambda; redis; idempotency;
-    }
-    
-    subgraph cluster_data {
-        label="Data Layer";
-        color=blue;
-        rds_primary; rds_replica; dynamodb; s3;
-    }
+    // Metadata-only replication (dashed lines)
+    MSK_US -> MSK_EU [style=dashed, label="Metadata Only"];
+    MSK_EU -> MSK_US [style=dashed, label="Metadata Only"];
 }
 ```
 
 # Components
 
-## Edge Layer
-- **AWS API Gateway**: Regional deployment with custom domain and WAF integration
-- **AWS WAF**: DDoS protection and request filtering
-- **Application Load Balancer**: Multi-AZ distribution with health checks
-- **Edge Tokenization Service**: PCI-DSS compliant tokenization before internal routing
+## Core Services
+- **API Gateway**: Regional endpoints (us-east-1, eu-west-1) for data ingestion with WAF protection
+- **ElastiCache Redis**: Multi-AZ clusters in each region for session/preference caching with regional encryption
+- **Amazon MSK**: Kafka clusters with selective metadata replication for event streaming
+- **Lambda Functions**: Stream processors, GDPR handlers, data transformation with same-region execution
+- **RDS PostgreSQL**: Regional primary databases with same-region read replicas explicitly pinned
+- **S3**: Regional encrypted storage for data exports and backups with lifecycle policies
 
-## Application Layer
-- **Amazon ECS Fargate**: Containerized microservices with auto-scaling
-- **AWS Lambda**: Serverless functions for lightweight processing
-- **Amazon ElastiCache**: Redis cluster for session management and caching
-- **Idempotency Store**: Redis-based duplicate request detection
+## GDPR Compliance Services
+- **Data Subject Rights Service**: Lambda-based service for 30-day erasure and machine-readable portability
+- **Retention Manager**: Automated data lifecycle management per data category
+- **Audit Logger**: Regional CloudTrail and custom audit logging with EU-only log sinks
+- **Encryption Service**: Regional KMS key rings matching data residency requirements
 
-## Data Layer
-- **Amazon RDS**: Multi-AZ PostgreSQL with read replicas
-- **Amazon S3**: Object storage with envelope encryption and lifecycle policies
-- **Amazon DynamoDB**: NoSQL database with partition key strategy for high-velocity data
-
-## Security & Compliance
-- **AWS KMS**: Customer Managed Keys with annual rotation (≤365 days)
-- **AWS Secrets Manager**: Credential rotation and management
-- **AWS CloudTrail**: Audit logging and compliance monitoring
-- **VPC Flow Logs**: Network traffic analysis
-- **VPC Endpoints**: Private access to AWS services
-
-## Monitoring & Operations
-- **Amazon CloudWatch**: Metrics, logs, and alerting with cost alarms
-- **AWS X-Ray**: Distributed tracing
-- **AWS Config**: Configuration compliance monitoring
+## Monitoring & Security
+- **CloudWatch**: Metrics, alarms, and cost monitoring with 20%/50%/80% thresholds
+- **WAF**: API protection and rate limiting
+- **VPC**: Network isolation with private subnets
+- **IAM**: Least privilege access controls with support access transparency
 
 # Folder Structure
 
 ```
-/infrastructure
-├── /terraform
-│   ├── /modules
-│   │   ├── /api-gateway
-│   │   ├── /ecs-cluster
-│   │   ├── /rds
-│   │   ├── /kms
-│   │   ├── /vpc-endpoints
-│   │   ├── /idempotency-store
-│   │   └── /vpc
-│   ├── /environments
-│   │   ├── /prod
-│   │   ├── /staging
-│   │   └── /dev
-│   └── main.tf
-├── /kubernetes
-│   ├── /manifests
-│   │   ├── /api-service
-│   │   ├── /backend-service
-│   │   ├── /tokenization-service
-│   │   └── /monitoring
-│   └── /helm-charts
-/application
-├── /api-gateway-service
-│   ├── /src
-│   ├── /tests
-│   ├── Dockerfile
-│   └── requirements.txt
-├── /backend-service
-│   ├── /src
-│   ├── /tests
-│   ├── Dockerfile
-│   └── package.json
-├── /tokenization-service
-│   ├── /src
-│   ├── /tests
-│   ├── Dockerfile
-│   └── requirements.txt
-├── /idempotency-service
-│   ├── /src
-│   ├── /tests
-│   └── package.json
-└── /shared
-    ├── /libraries
-    └── /schemas
-/monitoring
-├── /cloudwatch-dashboards
-├── /alarms
-├── /cost-monitoring
-└── /runbooks
+user-tracking-pipeline/
+├── infrastructure/
+│   ├── terraform/
+│   │   ├── modules/
+│   │   │   ├── api-gateway/
+│   │   │   ├── elasticache/
+│   │   │   ├── msk/
+│   │   │   ├── rds/
+│   │   │   ├── lambda/
+│   │   │   ├── gdpr-compliance/
+│   │   │   ├── kms-regional/
+│   │   │   └── cost-monitoring/
+│   │   ├── environments/
+│   │   │   ├── prod-us/
+│   │   │   ├── prod-eu/
+│   │   │   └── shared/
+│   │   └── global/
+├── services/
+│   ├── tracking-api/
+│   ├── stream-processor/
+│   ├── gdpr-service/
+│   ├── retention-manager/
+│   ├── data-export/
+│   └── audit-logger/
+├── schemas/
+│   ├── avro/
+│   ├── json/
+│   └── retention-policies/
+├── monitoring/
+│   ├── dashboards/
+│   ├── alerts/
+│   ├── cost-budgets/
+│   └── compliance-reports/
+├── compliance/
+│   ├── data-categories/
+│   ├── retention-schedules/
+│   └── erasure-procedures/
+└── docs/
+    ├── architecture/
+    ├── compliance/
+    ├── runbooks/
+    └── support-access/
 ```
 
 # API Design
 
-## Authentication & Authorization
-- OAuth 2.0 with JWT tokens
-- API key management through AWS API Gateway
-- Role-based access control (RBAC)
+## Tracking API Endpoints
 
-## Endpoints
+### POST /v1/events
+```json
+{
+  "user_id": "string",
+  "session_id": "string", 
+  "event_type": "string",
+  "timestamp": "ISO8601",
+  "properties": {},
+  "gdpr_consent": "boolean",
+  "data_residency": "EU|US",
+  "data_category": "behavioral|transactional|preference"
+}
 ```
-POST /api/v1/auth/token
-GET  /api/v1/health
-POST /api/v1/payments/tokenize
-GET  /api/v1/payments/{id}
-POST /api/v1/transactions
-GET  /api/v1/transactions/{id}
-POST /api/v1/idempotency/check
+
+### GET/PUT /v1/preferences/{user_id}
+```json
+{
+  "user_id": "string",
+  "preferences": {},
+  "consent_status": {},
+  "last_updated": "ISO8601",
+  "data_residency": "EU|US"
+}
 ```
 
-## Request/Response Format
-- JSON payload with standardized error codes
-- Request rate limiting: 1000 requests/minute per API key
-- Response caching with TTL-based invalidation
-- Idempotency keys for all mutation operations
+## GDPR Compliance API
 
-## Versioning Strategy
-- URI versioning (/api/v1/, /api/v2/)
-- Backward compatibility for 2 major versions
-- Deprecation notices with 6-month sunset period
+### POST /v1/gdpr/erasure
+```json
+{
+  "user_id": "string",
+  "request_id": "string",
+  "verification_token": "string",
+  "completion_deadline": "ISO8601"
+}
+```
 
-## Idempotency Implementation
-- Redis-based idempotency store with 24-hour TTL
-- SHA-256 hash of request payload + headers as idempotency key
-- Automatic duplicate detection for payment operations
+### POST /v1/gdpr/export
+```json
+{
+  "user_id": "string",
+  "request_id": "string",
+  "format": "json|csv",
+  "machine_readable": true
+}
+```
+
+### GET /v1/gdpr/status/{request_id}
+```json
+{
+  "request_id": "string",
+  "status": "pending|processing|completed|failed",
+  "completion_date": "ISO8601",
+  "export_url": "string"
+}
+```
 
 # Security
 
-## PCI-DSS Compliance
-- Tokenization implemented at API Gateway level before internal routing
-- Separate VPC for cardholder data environment (CDE)
-- Network segmentation with security groups and NACLs
-- No plain-text PAN storage or transmission through internal message brokers
-
 ## Encryption
-- TLS 1.3 enforced for all client connections
-- TLS 1.2+ minimum enforced for all AWS storage services
-- Customer Managed KMS keys for all data at rest
-- Envelope encryption for S3 objects using data encryption keys (DEKs) encrypted with CMKs
-- Database encryption with separate CMK per environment
+- **At Rest**: All data encrypted using regional AWS KMS key rings matching data residency
+- **In Transit**: TLS 1.3 for all API communications
+- **Key Management**: Separate key rings per region and environment, 365-day rotation maximum
 
-## Access Controls
-- IAM roles with least privilege principle
-- Service-specific KMS key access policies
-- VPC endpoints for private service communication to S3, DynamoDB, KMS, and Secrets Manager
-- WAF rules for common attack patterns
+## Network Security
+- **VPC**: Private subnets for all data processing components
+- **Security Groups**: Restrictive ingress/egress rules
+- **WAF**: Rate limiting and DDoS protection on API Gateway
 
-## Key Management
-- KMS key rotation period not exceeding 365 days
-- Separate key rings per environment with production keys isolated from non-production
-- Regional key placement matching data residency
-- Automated rotation alerts and compliance monitoring
+## Access Control
+- **IAM**: Service-specific roles with least privilege
+- **API Authentication**: JWT tokens with regional validation
+- **Database**: Encrypted connections with certificate validation
+- **Support Access**: Non-EU support access requires approved access transparency justification
 
-## Envelope Encryption Implementation
-- S3 objects encrypted using AES-256 data encryption keys (DEKs)
-- DEKs encrypted using Customer Managed KMS keys
-- Encrypted DEKs stored as object metadata
-- Automatic key derivation for large payload encryption
+## GDPR Compliance
+- **Data Residency**: EU data pinned to eu-west-1 region with storage location constraints
+- **Audit Logging**: All data access logged with regional CloudTrail, no non-EU log exports
+- **Consent Management**: Explicit consent tracking and enforcement
+- **Key Ring Topology**: Regional key rings matching data residency regions
 
 # Performance
 
-## Caching Strategy
-- Redis cluster with LRU eviction policy
-- Session data TTL: 30 minutes
-- API response caching TTL: 5 minutes for read operations
-- Cache warming for frequently accessed data
+## Latency Optimization
+- **Read Path Pinning**: Explicit same-region replica targeting, never default endpoints
+- **Regional Processing**: All processing occurs within data residency region
+- **Cache Strategy**: Multi-AZ ElastiCache with sub-millisecond access
 
-## Database Optimization
-- DynamoDB partition key strategy using composite keys (tenant_id + timestamp)
-- Read replicas distributed across AZs for PostgreSQL
-- Connection pooling with maximum 100 connections per service instance
-- Query optimization with proper indexing strategy
+## Scalability
+- **MSK Partition Management**: Proactive partition scaling strategy before 1000-partition limit
+- **Lambda Concurrency**: Regional concurrency limits aligned with data residency
+- **Database Scaling**: Read replica scaling within same region
 
-## Batching and Processing
-- Batch processing for high-volume operations (max 100 items per batch)
-- Asynchronous processing for non-critical operations
-- Circuit breaker pattern for external service calls
+## Cost Control
+- **Egress Monitoring**: Cost alarms at 20%, 50%, and 80% of forecast per account
+- **Regional Data Pinning**: Minimizes cross-region transfer costs
+- **Selective Replication**: Metadata-only cross-region replication reduces bandwidth
 
 # Trade-offs & Alternatives
 
-## Chosen Approach: AWS API Gateway + ECS Fargate
-- **Pros**: Managed service reduces operational overhead, native AWS integration, auto-scaling
-- **Cons**: Vendor lock-in, cold start latency for Lambda functions
+## Selected Approach Benefits
+- **Regional Data Pinning**: Ensures GDPR compliance vs cross-region replication
+- **ElastiCache Redis**: Provides high availability with Multi-AZ deployment vs single-node requirement
+- **MSK with Selective Replication**: Enables metadata sharing while maintaining data residency vs full replication
+- **Regional Read Replicas**: Improves performance within compliance boundaries vs cross-region replicas
+- **Lambda Processing**: Serverless scaling and cost efficiency for stream processing
 
-## Alternative: Self-managed Kong + EKS
-- **Pros**: Greater customization, multi-cloud portability
-- **Cons**: Higher operational complexity, additional security hardening required
-
-## Database Choice: RDS PostgreSQL
-- **Pros**: ACID compliance, mature ecosystem, automated backups
-- **Cons**: Higher cost than DynamoDB for simple key-value operations
-
-## Idempotency Store: Redis vs DynamoDB
-- **Chosen**: Redis for sub-millisecond latency
-- **Alternative**: DynamoDB for managed service benefits but higher latency
+## Trade-offs Made
+- **Reduced Cross-Region Flexibility**: Strict data residency limits operational flexibility
+- **Higher Regional Costs**: Duplicate infrastructure per region increases costs
+- **Compliance Overhead**: GDPR compliance checks add processing time and complexity
+- **Operational Complexity**: Regional key management and audit logging increase operational burden
 
 # Risks
 
-## High Risk
-- **Cross-region data egress costs**: 
-  Mitigation: Explicit regional read replica configuration, cost alarms at 20%, 50%, 80% thresholds, and cross-region data volume limited to 5GB/day maximum
-- **KMS key deletion**: 
-  Mitigation: 7-day deletion window, automated backup procedures, and separate key rings per environment
-
-## Medium Risk
-- **API Gateway throttling**: 
-  Mitigation: Request queuing, graceful degradation, and idempotency store to prevent duplicate processing
-- **Database connection limits**: 
-  Mitigation: Connection pooling (max 100 per instance) and read replica distribution
-- **Redis cache eviction under load**: 
-  Mitigation: LRU eviction policy, memory monitoring, and automatic scaling triggers
-
-## Low Risk
-- **Certificate expiration**: 
-  Mitigation: Automated renewal through ACM with 30-day advance notifications
-- **Log storage costs**: 
-  Mitigation: Lifecycle policies (30-day retention) and log aggregation with compression
-
-# Assumptions
-
-- Expected API traffic: 1M requests/day with 2x growth annually
-- Data volume per day: 100GB with 95% same-region access pattern (monitored via CloudWatch metrics)
-- Cross-region data volume: Maximum 5GB/day with cost monitoring
-- Recovery Time Objective (RTO): 15 minutes
-- Recovery Point Objective (RPO): 5 minutes
-- Compliance audit frequency: Quarterly
-- Development team size: 8-12 engineers with AWS experience
-- Peak concurrent connections: 10,000 with 3x burst capacity
-- Average payload size: 2KB for API requests, 50KB for file uploads
-
-# Decision Log
-
-## Accepted
-- Cross-region data volume controls with 5GB/day limit
-- TLS 1.2+ enforcement for AWS storage services
-- KMS key rotation ≤365 days with automated compliance monitoring
-- Redis-based idempotency store with 24-hour TTL
-- DynamoDB partition key strategy using composite keys
-- LRU eviction policy for Redis clusters
-- VPC endpoints for all supported AWS services
-
-## Rejected
--
+## Technical Risks
+- **MSK Partition Limits**: Maximum 1000 partitions per cluster may limit scalability
+  - **Mitigation**: Implement partition management strategy with automated scaling and cluster federation
+- **Lambda Cold Starts**: Potential 1-2 second delays for infrequent functions
+  - **Mitigation**: Implement provisioned concurrency for critical functions and warm-up strategies
+- **Regional Service Outages**: Single region failure impacts regional users
+  - **Mitigation**: Implement cross-region failover procedures
 
 ---
 

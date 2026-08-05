@@ -334,7 +334,7 @@ class PlanningPipeline:
                 validation_score=validation.overall_score,
                 knowledge_documents_searched=corpus["documents"],
                 knowledge_chunks_searched=corpus["chunks"],
-                knowledge_documents_retrieved=len(context_data),
+                knowledge_documents_retrieved=len({c["metadata"].get("source") for c in context_data if c.get("metadata")}),
                 knowledge_chunks_retrieved=len(context_data)
             )
 

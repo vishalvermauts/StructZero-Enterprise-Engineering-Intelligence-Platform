@@ -427,26 +427,23 @@ Honest list. These are real and currently unaddressed.
    `Trade-offs` lands about 3 in 4. `Requirements`, `Folder Structure` and `API Design` are
    reliably present. Prompt tuning, not a code defect — the omission is correctly reported
    rather than silent.
-2. **The knowledge corpus is growing.** It currently contains 16 markdown files covering AWS, Azure, GCP, and On-Prem topologies along with compliance mappings for PCI-DSS, SOC2, HIPAA, and GDPR. The retrieval machinery is real, and the enterprise brain is actively being populated.
+2. **The knowledge corpus is growing.** It currently contains 16 documents / 45 chunks covering AWS, Azure, GCP, and On-Prem topologies along with compliance mappings for PCI-DSS, SOC2, HIPAA, and GDPR. The retrieval machinery is real, and the enterprise brain is actively being populated. (Note: 12 are synthetic samples that should be replaced with real standards.)
 3. **UI state is not durable.** Run output is not stored in `st.session_state`, so any widget
    interaction or reconnect clears a completed result from the screen even though it is safely
    persisted in Snowflake.
-4. **`created_at` uses the app node's local clock.** Drift of 7 and 12.5 hours has been observed
-   against Snowflake's `CURRENT_TIMESTAMP()`. Ordering history by that field mis-sorts. Prefer
-   the table's `CREATED_AT` column.
+4. **`created_at`** legacy rows have inconsistent values depending on which node the app landed on. Ordering history by that field mis-sorts. Prefer the table's `CREATED_AT` column.
 5. **"Planning Mode / Active Engine" is decorative.** A disabled radio whose value is never
    captured. Only the review board engine exists; there is no legacy architect-only path.
-6. **`knowledge_documents_retrieved` reports the chunk count**, not a document count.
-7. **The prompt is still interpolated into SQL** in `cortex_gateway.complete()` with quote
+6. **The prompt is still interpolated into SQL** in `cortex_gateway.complete()` with quote
    doubling rather than a bind. It has held under adversarial input (apostrophes, backslashes,
    `$$$`, non-ASCII) but should be converted.
-8. **Revision loop rarely triggers naturally.** Reviewers overwhelmingly return `APPROVE` or
+7. **Revision loop rarely triggers naturally.** Reviewers overwhelmingly return `APPROVE` or
    `APPROVE WITH WARNINGS`; `BLOCK` is uncommon, so remediation is mostly dormant in practice.
-9. **Transient Cortex cancellations** have been observed on runs driven from outside Streamlit in
+8. **Transient Cortex cancellations** have been observed on runs driven from outside Streamlit in
    Snowflake. Guarded now — a null completion is recorded as a `FAILED` run rather than crashing —
    but the root cause is not established.
-10. **The MCP server is not part of the deployed Streamlit app.** It runs locally against
-    Snowflake.
+9. **The MCP server is not part of the deployed Streamlit app.** It runs locally against
+   Snowflake.
 
 ---
 
@@ -462,12 +459,13 @@ Honest list. These are real and currently unaddressed.
   filtering and a cascading fallback
 - **Cortex Analyst** — natural-language analytics over engineering telemetry
 - **Board gating and remediation** — votes decide the verdict, and a block triggers revision
+- **Retrieval cascade** — accumulating cascade fetching up to 8 chunks for broader compliance grounding
 
 **Next, in priority order:**
 
 | Priority | Item | Why |
 |---|---|---|
-| High | Populate the enterprise knowledge corpus | Converts the differentiator from mechanism to substance |
+| High | Replace sample documents with real internal standards | Converts the differentiator from mechanism to substance |
 | Medium | Durable UI state and rehydration from Snowflake | Long runs stop being fragile |
 | Medium | Snowpark Container Services | Parallel reviewer execution, removing the sequential constraint |
 | Medium | Native App packaging | One-click install into a consumer's own account |
