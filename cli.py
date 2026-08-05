@@ -65,6 +65,15 @@ def main():
                 
                 if "citations" in update:
                     print(f"{Fore.LIGHTBLACK_EX}      => Found {len(update['citations'])} relevant knowledge snippets.")
+                    
+                if "output" in update and "Voter" in agent:
+                    vote = str(update["output"]).strip().splitlines()[0] if update["output"] else "UNKNOWN"
+                    print(f"{Fore.LIGHTBLACK_EX}      => Vote: {vote}")
+                    
+                if "validation" in update:
+                    val = update["validation"]
+                    # val is a dataclass, so we access attributes
+                    print(f"{Fore.LIGHTBLACK_EX}      => Verdict: {val.status} | Score: {val.overall_score} | Board: {val.board_decision}")
             elif status == "error":
                 print(f"{Fore.RED}  ❌ [Step {step}] {agent} ERROR: {update.get('error', '')}")
                 sys.exit(1)
@@ -73,9 +82,11 @@ def main():
                 metrics = update.get("metrics")
                 print(f"\n{Fore.GREEN}{Style.BRIGHT}🎉 Workflow Complete!")
                 if metrics:
-                    print(f"{Fore.CYAN}Total Time: {metrics.get('total_latency_ms', 0)/1000:.2f}s")
-                    print(f"{Fore.CYAN}Total Cortex Calls: {metrics.get('cortex_calls', 0)}")
-                    print(f"{Fore.CYAN}Estimated Cost: ${metrics.get('estimated_cost_usd', 0):.4f}")
+                    print(f"{Fore.CYAN}Validation Score: {metrics.get('blueprint_score', 0)}/100")
+                    print(f"{Fore.CYAN}Board Decision:   {metrics.get('board_decision', 'N/A')}")
+                    print(f"{Fore.CYAN}Total Time:       {metrics.get('total_latency_ms', 0)/1000:.2f}s")
+                    print(f"{Fore.CYAN}Cortex Calls:     {metrics.get('cortex_calls', 0)}")
+                    print(f"{Fore.CYAN}Estimated Cost:   ${metrics.get('estimated_cost_usd', 0):.4f}")
     except Exception as e:
         print(f"\n{Fore.RED}Pipeline execution failed: {e}")
         sys.exit(1)

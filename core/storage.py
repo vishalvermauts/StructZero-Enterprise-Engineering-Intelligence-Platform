@@ -11,6 +11,8 @@ import dataclasses
 from snowflake.snowpark import Session
 from core.models import Blueprint, Project, DebateSession, ExecutionMetrics
 
+MIN_CONTEXT_CHUNKS = 4
+
 class StorageClient:
     """Snowpark-based client for managing Native JSON document persistence in Snowflake."""
     def __init__(self, session: Session):
@@ -198,7 +200,9 @@ class StorageClient:
 
             svc = root.databases["STRUCTZERO_DB"].schemas["ENTERPRISE"].cortex_search_services["STRUCTZERO_KNOWLEDGE_SEARCH"]
 
-            resp = None
+            target = min(MIN_CONTEXT_CHUNKS, limit)
+            merged, seen_text, modes_used = [], set(), []
+            
             for label, attempt_filter in attempts:
                 resp = svc.search(
                     query=prompt,
@@ -206,22 +210,31 @@ class StorageClient:
                     filter=attempt_filter,
                     limit=limit
                 )
-                if resp.results:
-                    applied_filters["match_mode"] = label
+                added = 0
+                for result in (resp.results or []):
+                    key = (result.get("chunk_text") or "").strip()
+                    if not key or key in seen_text:
+                        continue
+                    seen_text.add(key)
+                    merged.append({
+                        "chunk_text": result.get("chunk_text", ""),
+                        "metadata": {
+                            "source": result.get("source", "Unknown"),
+                            "cloud": result.get("cloud", ""),
+                            "compliance": result.get("compliance", ""),
+                            "category": result.get("category", "")
+                        },
+                        "score": 0.95, # Default high confidence for semantic search
+                    })
+                    added += 1
+                modes_used.append(f"{label} (+{added})")
+                if len(merged) >= target:
                     break
-                applied_filters["match_mode"] = f"{label} (empty)"
-
-            for result in resp.results:
-                returned_chunks.append({
-                    "chunk_text": result.get("chunk_text", ""),
-                    "metadata": {
-                        "source": result.get("source", "Unknown"),
-                        "cloud": result.get("cloud", ""),
-                        "compliance": result.get("compliance", ""),
-                        "category": result.get("category", "")
-                    },
-                    "score": 0.95, # Default high confidence for semantic search
-                })
+                    
+            applied_filters["match_mode"] = " -> ".join(modes_used)
+            applied_filters["min_chunks"] = target
+            returned_chunks = merged[:limit]
+            
             cortex_used = True
             
         except Exception as e:
